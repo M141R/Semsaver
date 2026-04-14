@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{{ title or "SemSaver" }}</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Manrope:wght@400;500;700;800&display=swap"
+              rel="stylesheet">
+        <link rel="stylesheet"
+              href="{{ url_for('static', filename='styles.css') }}">
+    </head>
+    <body>
+        <div class="page-shell">
+            <header class="topbar">
+                <a class="brand" href="{{ url_for('hello') }}">SemSaver</a>
+                <nav class="main-nav" aria-label="Primary">
+                    <a class="{% if active_page|default('repository') == 'repository' %}active{% endif %}"
+                       href="{{ url_for('hello') }}">Repository</a>
+                    <a class="{% if active_page == 'notes' %}active{% endif %}" href="{{ url_for('hello', type='Note') }}">Notes</a>
+                    <a class="{% if active_page == 'syllabi' %}active{% endif %}" href="{{ url_for('hello', type='Syllabus') }}">Syllabi</a>
+                    <a class="{% if active_page == 'papers' %}active{% endif %}" href="{{ url_for('hello', type='Paper') }}">Papers</a>
+                </nav>
+                <div class="top-actions">
+                    <button class="icon-btn" aria-label="Notifications">&#128276;</button>
+                    <button class="icon-btn" aria-label="Bookmarks">&#128278;</button>
+                    {% if current_user.is_authenticated %}
+                        <a class="sign-in" href="{{ url_for('admin') }}">Dashboard</a>
+                        <form action="{{ url_for('admin_logout') }}" method="post" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="join-btn" type="submit">Logout</button>
+                        </form>
+                    {% else %}
+                        <a class="sign-in" href="{{ url_for('admin_login') }}">Admin</a>
+                        <a class="join-btn" href="{{ url_for('admin_login') }}">Upload</a>
+                    {% endif %}
+                </div>
+            </header>
+            <main>
+                {% block content %}{% endblock %}
+            </main>
+            <footer class="page-footer">
+                <p class="footer-brand">SemSaver</p>
+                <p class="copyright">&copy; 2026 SEMSAVER. ALL RIGHTS RESERVED.</p>
+            </footer>
+        </div>
+    </body>
+</html>

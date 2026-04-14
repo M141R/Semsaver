@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>{{ title or "SemSaver Admin | Dashboard" }}</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Manrope:wght@400;500;700;800&display=swap"
+		  rel="stylesheet">
+	<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="admin-dashboard-body">
+	<div class="admin-dashboard-shell">
+		<aside class="admin-sidebar">
+			<div>
+				<a class="admin-sidebar-brand" href="{{ url_for('hello') }}">SemSaver</a>
+				<p class="admin-sidebar-title">Admin Console</p>
+				<p class="admin-sidebar-subtitle">Study Material Hub</p>
+
+				<nav class="admin-sidebar-nav" aria-label="Sidebar">
+					<a class="active" href="{{ url_for('admin') }}">Upload Resource</a>
+					<a href="#resource-table">All Resources</a>
+					<a href="{{ url_for('hello') }}">Preview Public Page</a>
+					<form action="{{ url_for('admin_logout') }}" method="post" class="inline-form">
+						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+						<button type="submit" class="as-link">Logout</button>
+					</form>
+				</nav>
+			</div>
+
+			<div class="admin-sidebar-bottom">
+				<a href="{{ url_for('hello') }}">View Public Library</a>
+				<div class="admin-status-box">
+					<strong>System Status</strong>
+					<span>Operational</span>
+				</div>
+			</div>
+		</aside>
+
+		<div class="admin-main-wrap">
+			<header class="admin-topbar">
+				<nav class="admin-top-links" aria-label="Top navigation">
+					<a class="active" href="{{ url_for('admin') }}">Dashboard</a>
+					<a href="#resource-table">Resources</a>
+					<a href="{{ url_for('hello') }}">Public Library</a>
+				</nav>
+				<div class="admin-top-actions">
+					<button class="admin-icon-btn" aria-label="Notifications">&#128276;</button>
+					<button class="admin-icon-btn" aria-label="Settings">&#9881;</button>
+					<div class="admin-avatar">A</div>
+					<form action="{{ url_for('admin_logout') }}" method="post" class="inline-form">
+						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+						<button type="submit" class="admin-upload-btn">Logout</button>
+					</form>
+				</div>
+			</header>
+
+			<main class="admin-content-grid">
+				<section class="admin-form-column">
+					<h1>Resource Curation</h1>
+					<p>Upload notes, syllabi, and papers for your college community.</p>
+
+					{% with messages = get_flashed_messages(with_categories=true) %}
+						{% if messages %}
+							<div class="admin-alert-stack">
+								{% for category, message in messages %}
+									<p class="admin-alert {{ category }}">{{ message }}</p>
+								{% endfor %}
+							</div>
+						{% endif %}
+					{% endwith %}
+
+					<div class="admin-metrics">
+						<article class="metric-card">
+							<span>Total Resources</span>
+							<strong>{{ stats.total }}</strong>
+						</article>
+						<article class="metric-card">
+							<span>Notes</span>
+							<strong>{{ stats.notes }}</strong>
+						</article>
+						<article class="metric-card">
+							<span>Syllabi</span>
+							<strong>{{ stats.syllabi }}</strong>
+						</article>
+						<article class="metric-card">
+							<span>Papers</span>
+							<strong>{{ stats.papers }}</strong>
+						</article>
+					</div>
+
+					<form class="admin-upload-form" method="post" enctype="multipart/form-data">
+						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+						<div class="admin-field-grid">
+							<label>
+								<span>TITLE</span>
+								<input type="text" name="title" placeholder="Partial Differential Equations - Unit 1" required>
+							</label>
+							<label>
+								<span>SUBJECT</span>
+								<input type="text" name="subject" placeholder="Mathematics" required>
+							</label>
+							<label>
+								<span>TYPE</span>
+								<select name="type" required>
+									<option value="">Select Type</option>
+									<option value="Note">Note</option>
+									<option value="Syllabus">Syllabus</option>
+									<option value="Paper">Paper</option>
+								</select>
+							</label>
+							<label>
+								<span>SEMESTER</span>
+								<select name="semester" required>
+									<option value="1">1</option>
+									<option value="2">2</option>
+									<option value="3">3</option>
+									<option value="4">4</option>
+									<option value="5">5</option>
+									<option value="6">6</option>
+									<option value="7">7</option>
+									<option value="8">8</option>
+								</select>
+							</label>
+						</div>
+
+						<label>
+							<span>TAGS</span>
+							<input type="text" name="tags" placeholder="sem3, urgent, handwritten">
+						</label>
+
+						<label>
+							<span>EXTERNAL FILE URL (OPTIONAL)</span>
+							<input type="url" name="file_url" placeholder="Google Drive link or direct public URL">
+						</label>
+
+						<div class="admin-dropzone" role="button" tabindex="0" aria-label="Upload area">
+							<div class="admin-drop-icon">&#9729;</div>
+							<p>Upload PDF to Supabase Storage</p>
+							<small>PDF up to 50MB</small>
+							<label class="dropzone-file-label">
+								<input class="dropzone-file-input" type="file" name="resource_file" accept="application/pdf,.pdf">
+								<span>SELECT FILE FROM DEVICE</span>
+							</label>
+							<small class="dropzone-helper">Use either this upload field or external URL above.</small>
+						</div>
+
+						<div class="admin-form-actions">
+							<button type="submit" class="admin-submit-btn">Save Resource</button>
+						</div>
+					</form>
+
+					<section class="resource-admin-table" id="resource-table" aria-label="All resources">
+						<div class="resource-admin-head">
+							<h2>All Resources</h2>
+							<span>{{ resources|length }} TOTAL</span>
+						</div>
+						<div class="resource-table-wrap">
+							<table>
+								<thead>
+									<tr>
+										<th>Title</th>
+										<th>Type</th>
+										<th>Subject</th>
+										<th>Sem</th>
+										<th>Link</th>
+										<th>Action</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% if resources %}
+										{% for item in resources %}
+											<tr>
+												<td>{{ item.title or '-' }}</td>
+												<td>{{ item.type or '-' }}</td>
+												<td>{{ item.subject or '-' }}</td>
+												<td>{{ item.semester or '-' }}</td>
+												<td><a href="{{ item.file_url }}" target="_blank" rel="noopener">Open</a></td>
+												<td>
+													<form action="{{ url_for('delete_resource', resource_id=item.id) }}" method="post">
+														<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+														<button class="delete-btn" type="submit">Delete</button>
+													</form>
+												</td>
+											</tr>
+										{% endfor %}
+									{% else %}
+										<tr>
+											<td colspan="6">No resources available yet.</td>
+										</tr>
+									{% endif %}
+								</tbody>
+							</table>
+						</div>
+					</section>
+				</section>
+
+				<aside class="admin-feed-column">
+					<div class="admin-feed-head">
+						<h2>Recent Uploads</h2>
+						<span>{{ recent_resources|length }} ITEMS</span>
+					</div>
+
+					<div class="admin-feed-list">
+						{% if recent_resources %}
+							{% for item in recent_resources %}
+								{% set t = (item.type or '')|lower %}
+								{% set color = 'green' if t == 'note' else ('blue' if t == 'syllabus' else 'amber') %}
+								<article class="admin-feed-item">
+									<div class="feed-icon {{ color }}">&#128196;</div>
+									<div>
+										<h3>{{ item.title or 'Untitled Resource' }}</h3>
+										<p>
+											<span class="pill {{ color }}">{{ item.type or 'RESOURCE' }}</span>
+											{{ item.subject or 'General' }} | Sem {{ item.semester or '-' }}
+										</p>
+									</div>
+								</article>
+							{% endfor %}
+						{% else %}
+							<p class="admin-feed-empty">No uploads yet. Add your first resource using the form.</p>
+						{% endif %}
+					</div>
+
+					<section class="admin-tips-box">
+						<h3>SemSaver Tips</h3>
+						<p>
+							Use clear titles and accurate type labels so students can filter quickly. Prefer semester and subject tags on every upload.
+						</p>
+						<a href="#">READ GUIDELINES</a>
+					</section>
+				</aside>
+			</main>
+		</div>
+	</div>
+</body>
+</html>

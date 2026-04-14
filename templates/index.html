@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% set active_page = "repository" %}
+{% block content %}
+    <section class="hero">
+        <p class="eyebrow">THE DIGITAL CURATOR</p>
+        <h1>
+            Navigate the collective
+            <br>
+            knowledge of <em>SemSaver.</em>
+        </h1>
+        <p class="hero-copy">
+            Browse notes, syllabi, and papers shared by your batchmates. Filter by
+            subject, type, and semester, then open files instantly.
+        </p>
+    </section>
+
+    <section class="search-panel" aria-label="Search and filters">
+        <form method="get" action="{{ url_for('hello') }}">
+            <div class="search-wrap">
+                <span class="search-icon" aria-hidden="true">&#128269;</span>
+                <input type="text"
+                       name="q"
+                       value="{{ filter_values.q }}"
+                       placeholder="Search by title, subject, or tag"
+                       aria-label="Search resources">
+            </div>
+            <div class="filters-row">
+                <select class="filter-chip" name="subject" aria-label="Filter by subject">
+                    <option value="">All Subjects</option>
+                    {% for subject in subjects %}
+                        <option value="{{ subject }}" {% if filter_values.subject == subject %}selected{% endif %}>{{ subject }}</option>
+                    {% endfor %}
+                </select>
+
+                <select class="filter-chip" name="type" aria-label="Filter by type">
+                    <option value="">All Types</option>
+                    {% for t in ['Note', 'Syllabus', 'Paper'] %}
+                        <option value="{{ t }}" {% if filter_values.type == t %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+
+                <select class="filter-chip" name="semester" aria-label="Filter by semester">
+                    <option value="">All Semesters</option>
+                    {% for sem in semesters %}
+                        <option value="{{ sem }}" {% if filter_values.semester == sem %}selected{% endif %}>Semester {{ sem }}</option>
+                    {% endfor %}
+                </select>
+
+                <button class="filter-apply" type="submit">Apply</button>
+                <a class="filter-reset" href="{{ url_for('hello') }}">Reset</a>
+                <p class="results-count">SHOWING {{ data|length if data else 0 }} RESULTS</p>
+            </div>
+        </form>
+    </section>
+
+    {% if data %}
+        <section class="resource-grid" aria-label="Document cards">
+            {% for item in data %}
+                {% set t = (item.type or '')|lower %}
+                {% set badge = 'green' if t == 'note' else ('blue' if t == 'syllabus' else 'amber') %}
+                <article class="resource-card">
+                    <div class="resource-top">
+                        <span class="doc-icon">&#128196;</span>
+                        <span class="tag {{ badge }}">{{ item.type or 'Resource' }}</span>
+                    </div>
+                    <h3>{{ item.title or 'Untitled Resource' }}</h3>
+                    <p class="resource-subject">{{ item.subject or 'General' }}</p>
+
+                    {% if item.tags %}
+                        <p class="resource-tags">
+                            {% for tag in item.tags %}
+                                <span>#{{ tag }}</span>
+                            {% endfor %}
+                        </p>
+                    {% endif %}
+
+                    <div class="resource-meta">
+                        <span>Semester {{ item.semester or '-' }}</span>
+                        <span>{{ (item.created_at or '')[:10] or 'N/A' }}</span>
+                    </div>
+                    <a href="{{ item.file_url }}" class="download-btn" target="_blank" rel="noopener">Open Resource</a>
+                </article>
+            {% endfor %}
+        </section>
+    {% else %}
+        <section class="empty-state" aria-label="No resources">
+            <h3>No resources uploaded yet</h3>
+            <p>Use the admin panel to add your first note, syllabus, or paper.</p>
+            <a href="{{ url_for('admin_login') }}" class="download-btn">Go to Admin</a>
+        </section>
+    {% endif %}
+{% endblock %}
