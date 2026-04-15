@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% set active_page = "repository" %}
+{% block head_meta %}
+    <meta property="og:title" content="{{ resource.title or 'Resource' }} | BITVault">
+    <meta property="og:description" content="View and share curated academic resources on BITVault.">
+    <meta property="og:url" content="{{ share_url }}">
+{% endblock %}
+{% block content %}
+    <section class="detail-hero">
+        <p class="eyebrow">RESOURCE DETAIL</p>
+        <h1>{{ resource.title or 'Untitled Resource' }}</h1>
+        <p class="hero-copy">Deep preview, metadata, and related study materials in one place.</p>
+        <div class="detail-quick-actions">
+            <a href="{{ resource.file_url }}" target="_blank" rel="noopener" class="download-btn">Open Full PDF</a>
+            <button class="secondary-btn share-btn" type="button" data-share-url="{{ share_url }}">Copy Share Link</button>
+            <a class="secondary-btn" href="https://twitter.com/intent/tweet?url={{ share_url|urlencode }}&text={{ (resource.title or 'Check this resource')|urlencode }}" target="_blank" rel="noopener">Share on X</a>
+        </div>
+    </section>
+
+    <section class="detail-layout" aria-label="Resource details">
+        <article class="detail-preview-card">
+            <h2>PDF Preview</h2>
+            <p class="preview-hint">In-browser viewer with thumbnail mode enabled.</p>
+            <iframe
+                class="pdf-frame"
+                src="{{ resource.file_url }}#pagemode=thumbs&toolbar=1&navpanes=1"
+                title="PDF preview for {{ resource.title }}"
+                loading="lazy">
+            </iframe>
+        </article>
+
+        <aside class="detail-meta-card">
+            <h2>Metadata</h2>
+            <ul class="meta-list">
+                <li><strong>Type</strong><span>{{ resource.type or '-' }}</span></li>
+                <li><strong>Subject</strong><span>{{ resource.subject or '-' }}</span></li>
+                <li><strong>Semester</strong><span>{{ resource.semester or '-' }}</span></li>
+                <li><strong>Uploaded</strong><span>{{ (resource.created_at or '')[:10] or '-' }}</span></li>
+            </ul>
+
+            <h3>Tags</h3>
+            <p class="resource-tags">
+                {% if resource.tags %}
+                    {% for tag in resource.tags %}
+                        <span>#{{ tag }}</span>
+                    {% endfor %}
+                {% else %}
+                    <span>#general</span>
+                {% endif %}
+            </p>
+
+            <h3>Uploader Notes</h3>
+            <p class="uploader-note">{{ resource.uploader_note or 'No uploader notes were provided for this resource.' }}</p>
+        </aside>
+    </section>
+
+    <section class="related-section" aria-label="Related resources">
+        <div class="resource-admin-head">
+            <h2>Related Items</h2>
+            <span>{{ related_resources|length }} FOUND</span>
+        </div>
+        {% if related_resources %}
+            <div class="resource-grid compact-grid">
+                {% for item in related_resources %}
+                    <article class="resource-card">
+                        <h3>{{ item.title or 'Untitled Resource' }}</h3>
+                        <p class="resource-subject">{{ item.subject or '-' }} | Sem {{ item.semester or '-' }}</p>
+                        <div class="resource-actions">
+                            <a href="{{ url_for('resource_detail', resource_id=item.id) }}" class="secondary-btn">View Details</a>
+                            <a href="{{ item.file_url }}" class="download-btn" target="_blank" rel="noopener">Open PDF</a>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="admin-feed-empty">No related resources found yet.</p>
+        {% endif %}
+    </section>
+{% endblock %}

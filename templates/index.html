@@ -1,20 +1,26 @@
 {% extends "base.html" %}
 {% set active_page = "repository" %}
+{% block head_meta %}
+    <meta property="og:title" content="BITVault Library">
+    <meta property="og:description" content="Browse notes, syllabi, and papers on BITVault.">
+{% endblock %}
 {% block content %}
     <section class="hero">
         <p class="eyebrow">THE DIGITAL CURATOR</p>
         <h1>
             Navigate the collective
             <br>
-            knowledge of <em>SemSaver.</em>
+            knowledge of <em>BITVault.</em>
         </h1>
         <p class="hero-copy">
             Browse notes, syllabi, and papers shared by your batchmates. Filter by
-            subject, type, and semester, then open files instantly.
+            subject, type, and semester, then open files instantly. Want to contribute?
+            Submit a resource for moderation in one minute.
         </p>
+        <a href="{{ url_for('public_upload') }}" class="download-btn">Submit Resource</a>
     </section>
 
-    <section class="search-panel" aria-label="Search and filters">
+    <section class="search-panel sticky-filters" aria-label="Search and filters">
         <form method="get" action="{{ url_for('hello') }}">
             <div class="search-wrap">
                 <span class="search-icon" aria-hidden="true">&#128269;</span>
@@ -78,15 +84,19 @@
                         <span>Semester {{ item.semester or '-' }}</span>
                         <span>{{ (item.created_at or '')[:10] or 'N/A' }}</span>
                     </div>
-                    <a href="{{ item.file_url }}" class="download-btn" target="_blank" rel="noopener">Open Resource</a>
+                    <div class="resource-actions">
+                        <a href="{{ item.file_url }}" class="download-btn" target="_blank" rel="noopener">Open Resource</a>
+                        <a href="{{ url_for('resource_detail', resource_id=item.id) }}" class="secondary-btn">View Details</a>
+                        <button class="secondary-btn share-btn" type="button" data-share-url="{{ url_for('resource_detail', resource_id=item.id, _external=True) }}">Copy Link</button>
+                    </div>
                 </article>
             {% endfor %}
         </section>
     {% else %}
         <section class="empty-state" aria-label="No resources">
             <h3>No resources uploaded yet</h3>
-            <p>Use the admin panel to add your first note, syllabus, or paper.</p>
-            <a href="{{ url_for('admin_login') }}" class="download-btn">Go to Admin</a>
+            <p>Be the first contributor. Public submissions are reviewed by moderators before publishing.</p>
+            <a href="{{ url_for('public_upload') }}" class="download-btn">Submit First Resource</a>
         </section>
     {% endif %}
 {% endblock %}

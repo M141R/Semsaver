@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>{{ title or "SemSaver Admin | Dashboard" }}</title>
+	<title>{{ title or "BITVault Admin | Dashboard" }}</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Manrope:wght@400;500;700;800&display=swap"
@@ -14,12 +14,13 @@
 	<div class="admin-dashboard-shell">
 		<aside class="admin-sidebar">
 			<div>
-				<a class="admin-sidebar-brand" href="{{ url_for('hello') }}">SemSaver</a>
+				<a class="admin-sidebar-brand" href="{{ url_for('hello') }}">BITVault</a>
 				<p class="admin-sidebar-title">Admin Console</p>
 				<p class="admin-sidebar-subtitle">Study Material Hub</p>
 
 				<nav class="admin-sidebar-nav" aria-label="Sidebar">
 					<a class="active" href="{{ url_for('admin') }}">Upload Resource</a>
+					<a href="#moderation-queue">Moderation Queue</a>
 					<a href="#resource-table">All Resources</a>
 					<a href="{{ url_for('hello') }}">Preview Public Page</a>
 					<form action="{{ url_for('admin_logout') }}" method="post" class="inline-form">
@@ -42,6 +43,7 @@
 			<header class="admin-topbar">
 				<nav class="admin-top-links" aria-label="Top navigation">
 					<a class="active" href="{{ url_for('admin') }}">Dashboard</a>
+					<a href="#moderation-queue">Moderation</a>
 					<a href="#resource-table">Resources</a>
 					<a href="{{ url_for('hello') }}">Public Library</a>
 				</nav>
@@ -137,7 +139,7 @@
 
 						<div class="admin-dropzone" role="button" tabindex="0" aria-label="Upload area">
 							<div class="admin-drop-icon">&#9729;</div>
-							<p>Upload PDF to Supabase Storage</p>
+							<p>Upload PDF to Azure Blob Storage</p>
 							<small>PDF up to 50MB</small>
 							<label class="dropzone-file-label">
 								<input class="dropzone-file-input" type="file" name="resource_file" accept="application/pdf,.pdf">
@@ -150,6 +152,61 @@
 							<button type="submit" class="admin-submit-btn">Save Resource</button>
 						</div>
 					</form>
+
+					<section class="resource-admin-table" id="moderation-queue" aria-label="Pending submissions">
+						<div class="resource-admin-head">
+							<h2>Moderation Queue</h2>
+							<span>{{ pending_submissions|length }} PENDING</span>
+						</div>
+						<div class="resource-table-wrap">
+							<table>
+								<thead>
+									<tr>
+										<th>Title</th>
+										<th>Uploader</th>
+										<th>Type</th>
+										<th>Sem</th>
+										<th>Link</th>
+										<th>Review</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% if pending_submissions %}
+										{% for item in pending_submissions %}
+											<tr>
+												<td>{{ item.title or '-' }}</td>
+												<td>
+													{{ (item.submitted_by or '-')[:8] }}
+													<br>
+													<small>{{ item.submitted_by or '-' }}</small>
+												</td>
+												<td>{{ item.type or '-' }}</td>
+												<td>{{ item.semester or '-' }}</td>
+												<td><a href="{{ item.file_url }}" target="_blank" rel="noopener">Preview</a></td>
+												<td>
+													<div class="moderation-actions">
+														<form action="{{ url_for('approve_submission', submission_id=item.id) }}" method="post" class="inline-form">
+															<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+															<button class="approve-btn" type="submit">Approve</button>
+														</form>
+														<form action="{{ url_for('reject_submission', submission_id=item.id) }}" method="post" class="inline-form">
+															<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+															<input type="text" name="review_note" placeholder="Reason (optional)">
+															<button class="delete-btn" type="submit">Reject</button>
+														</form>
+													</div>
+												</td>
+											</tr>
+										{% endfor %}
+									{% else %}
+										<tr>
+											<td colspan="6">No pending submissions. Your moderation queue is clear.</td>
+										</tr>
+									{% endif %}
+								</tbody>
+							</table>
+						</div>
+					</section>
 
 					<section class="resource-admin-table" id="resource-table" aria-label="All resources">
 						<div class="resource-admin-head">
@@ -194,6 +251,41 @@
 							</table>
 						</div>
 					</section>
+
+					<section class="resource-admin-table" aria-label="Reviewed submissions">
+						<div class="resource-admin-head">
+							<h2>Recently Reviewed</h2>
+							<span>{{ reviewed_submissions|length }} ITEMS</span>
+						</div>
+						<div class="resource-table-wrap">
+							<table>
+								<thead>
+									<tr>
+										<th>Title</th>
+										<th>Status</th>
+										<th>Reviewer Note</th>
+										<th>Reviewed At</th>
+									</tr>
+								</thead>
+								<tbody>
+									{% if reviewed_submissions %}
+										{% for item in reviewed_submissions %}
+											<tr>
+												<td>{{ item.title or '-' }}</td>
+												<td>{{ item.status or '-' }}</td>
+												<td>{{ item.review_note or '-' }}</td>
+												<td>{{ (item.reviewed_at or '')[:16] or '-' }}</td>
+											</tr>
+										{% endfor %}
+									{% else %}
+										<tr>
+											<td colspan="4">No reviewed submissions yet.</td>
+										</tr>
+									{% endif %}
+								</tbody>
+							</table>
+						</div>
+					</section>
 				</section>
 
 				<aside class="admin-feed-column">
@@ -224,7 +316,7 @@
 					</div>
 
 					<section class="admin-tips-box">
-						<h3>SemSaver Tips</h3>
+						<h3>BITVault Tips</h3>
 						<p>
 							Use clear titles and accurate type labels so students can filter quickly. Prefer semester and subject tags on every upload.
 						</p>

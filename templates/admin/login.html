@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>{{ title or "SemSaver Admin | Login" }}</title>
+	<title>{{ title or "BITVault Admin | Login" }}</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Manrope:wght@400;500;700;800&display=swap"
@@ -12,7 +12,7 @@
 </head>
 <body class="admin-login-body">
 	<header class="admin-login-topbar">
-		<a class="admin-login-brand" href="{{ url_for('hello') }}">SemSaver</a>
+		<a class="admin-login-brand" href="{{ url_for('hello') }}">BITVault</a>
 		<nav class="admin-login-nav" aria-label="Top links">
 			<a href="{{ url_for('hello') }}">Repository</a>
 			<a href="#">Archives</a>
@@ -21,20 +21,36 @@
 
 	<main class="admin-login-main">
 		<section class="admin-login-card" aria-label="Admin login">
-			<h1>Admin Access</h1>
-			<p class="admin-login-subtitle">PRIVATE MATERIAL CURATION PORTAL</p>
+			<h1>BITVault Login</h1>
+			<p class="admin-login-subtitle">SUPABASE AUTH ACCESS</p>
 
 			{% if error %}
 				<p class="form-error">{{ error }}</p>
 			{% endif %}
 
-			<form class="admin-login-form" action="{{ url_for('admin_login') }}" method="post">
+			{% with messages = get_flashed_messages(with_categories=true) %}
+				{% if messages %}
+					<div class="admin-alert-stack">
+						{% for category, message in messages %}
+							<p class="admin-alert {{ category }}">{{ message }}</p>
+						{% endfor %}
+					</div>
+				{% endif %}
+			{% endwith %}
+
+			<form class="admin-login-form" action="{{ url_for('auth_login') }}" method="post">
 				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+				<input type="hidden" name="mode" value="login">
+				<label class="admin-login-field">
+					<span class="admin-lock" aria-hidden="true">&#9993;</span>
+					<input type="email" name="email" placeholder="Email" required>
+				</label>
 				<label class="admin-login-field">
 					<span class="admin-lock" aria-hidden="true">&#128274;</span>
-					<input type="password" name="password" placeholder="Master Password" required>
+					<input type="password" name="password" placeholder="Password" required>
 				</label>
 				<button type="submit" class="admin-primary-btn">Login</button>
+				<button type="submit" class="admin-primary-btn admin-secondary-btn" onclick="this.form.mode.value='register'">Create Account</button>
 			</form>
 
 			<a class="admin-link-lite" href="{{ url_for('hello') }}">BACK TO PUBLIC LIBRARY</a>
@@ -47,7 +63,7 @@
 	</main>
 
 	<footer class="admin-login-footer">
-		<p>&copy; 2026 SEMSAVER. RESTRICTED ACCESS.</p>
+		<p>&copy; 2026 BITVAULT. RESTRICTED ACCESS.</p>
 		<p><a href="#">Privacy</a> <a href="#">Terms</a></p>
 	</footer>
 </body>
