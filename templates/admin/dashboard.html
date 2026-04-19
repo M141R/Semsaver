@@ -182,7 +182,7 @@
 												</td>
 												<td>{{ item.type or '-' }}</td>
 												<td>{{ item.semester or '-' }}</td>
-												<td><a href="{{ item.file_url }}" target="_blank" rel="noopener">Preview</a></td>
+												<td><a href="{{ url_for('open_resource', resource_id=item.id, src='admin_pending_preview') }}" target="_blank" rel="noopener">Preview</a></td>
 												<td>
 													<div class="moderation-actions">
 														<form action="{{ url_for('approve_submission', submission_id=item.id) }}" method="post" class="inline-form">
@@ -221,6 +221,7 @@
 										<th>Type</th>
 										<th>Subject</th>
 										<th>Sem</th>
+										<th>Opens</th>
 										<th>Link</th>
 										<th>Action</th>
 									</tr>
@@ -233,7 +234,8 @@
 												<td>{{ item.type or '-' }}</td>
 												<td>{{ item.subject or '-' }}</td>
 												<td>{{ item.semester or '-' }}</td>
-												<td><a href="{{ item.file_url }}" target="_blank" rel="noopener">Open</a></td>
+												<td>{{ item.open_count or 0 }}</td>
+												<td><a href="{{ url_for('open_resource', resource_id=item.id, src='admin_resource_table') }}" target="_blank" rel="noopener">Open</a></td>
 												<td>
 													<form action="{{ url_for('delete_resource', resource_id=item.id) }}" method="post">
 														<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -244,7 +246,7 @@
 										{% endfor %}
 									{% else %}
 										<tr>
-											<td colspan="6">No resources available yet.</td>
+											<td colspan="7">No resources available yet.</td>
 										</tr>
 									{% endif %}
 								</tbody>

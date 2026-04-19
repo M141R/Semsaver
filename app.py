@@ -77,6 +77,7 @@ login_manager.login_message = "Please log in to access admin pages."
 login_manager.login_message_category = "error"
 
 APP_NAME = "BITVault"
+SITE_URL = os.environ.get("SITE_URL", "").strip().rstrip("/")
 RESOURCE_TYPES = {"Note", "Syllabus", "Paper"}
 MODERATOR_ROLES = {"moderator", "admin"}
 AZURE_STORAGE_CONNECTION_STRING = os.environ.get("AZURE_STORAGE_CONNECTION_STRING", "")
@@ -185,10 +186,24 @@ def validate_csrf_or_abort():
 
 @app.context_processor
 def inject_template_globals():
+    base_site_url = SITE_URL or request.url_root.rstrip("/")
+    canonical_url = request.base_url
+    default_robots = "index, follow, max-snippet:-1, max-image-preview:large"
+
+    if request.path.startswith("/admin") or request.path.startswith("/auth"):
+        default_robots = "noindex, nofollow"
+    elif request.path == "/upload":
+        default_robots = "noindex, follow"
+    elif request.args:
+        default_robots = "noindex, follow"
+
     return {
         "csrf_token": get_csrf_token,
         "public_upload_max_mb": PUBLIC_UPLOAD_MAX_MB,
         "current_role": current_role,
+        "base_site_url": base_site_url,
+        "canonical_url": canonical_url,
+        "default_robots": default_robots,
     }
 
 
@@ -222,6 +237,32 @@ def fetch_resources(select_columns: str = "*"):
     except Exception as exc:
         app.logger.error("Supabase fetch_resources failed: %s", exc)
         return []
+
+
+def fetch_resources_for_admin():
+    if not supabase:
+        return []
+
+    base_columns = "id,title,type,subject,semester,file_url,tags,created_at"
+    try:
+        response = (
+            supabase.table("resources")
+            .select(f"{base_columns},open_count")
+            .order("created_at", desc=True)
+            .execute()
+        )
+    except Exception:
+        response = (
+            supabase.table("resources")
+            .select(base_columns)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+    data = response.data or []
+    for item in data:
+        item.setdefault("open_count", 0)
+    return data
 
 
 def build_stats(resources):
@@ -530,6 +571,78 @@ def fetch_resource_by_id(resource_id: int):
     return resource
 
 
+def fetch_resource_open_target(resource_id: int):
+    if not supabase:
+        return None
+
+    try:
+        response = (
+            supabase.table("resources")
+            .select("id,title,type,subject,file_url,open_count")
+            .eq("id", resource_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception:
+        response = (
+            supabase.table("resources")
+            .select("id,title,type,subject,file_url")
+            .eq("id", resource_id)
+            .limit(1)
+            .execute()
+        )
+
+    if not response.data:
+        return None
+    return response.data[0]
+
+
+def record_resource_open(resource: dict, source: str):
+    if not supabase or not resource:
+        return
+
+    resource_id = resource.get("id")
+    if not resource_id:
+        return
+
+    payload = {
+        "resource_id": resource_id,
+        "source": source[:60],
+        "opened_at": datetime.now(timezone.utc).isoformat(),
+        "user_id": current_user.id if current_user.is_authenticated else None,
+        "referrer": (request.headers.get("Referer") or "")[:300],
+        "user_agent": (request.headers.get("User-Agent") or "")[:300],
+    }
+
+    # Optional event table for detailed analytics; skip if table doesn't exist.
+    try:
+        supabase.table("resource_open_events").insert(payload).execute()
+    except Exception:
+        pass
+
+    # Optional RPC if user created it for atomic increments.
+    try:
+        supabase.rpc(
+            "increment_resource_open_count", {"resource_id_input": resource_id}
+        ).execute()
+        return
+    except Exception:
+        pass
+
+    # Fallback increment if open_count exists on resources table.
+    if "open_count" in resource:
+        current_count = int(resource.get("open_count") or 0)
+        try:
+            supabase.table("resources").update(
+                {
+                    "open_count": current_count + 1,
+                    "last_opened_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ).eq("id", resource_id).execute()
+        except Exception:
+            pass
+
+
 def require_supabase_or_redirect():
     if supabase:
         return False
@@ -556,9 +669,7 @@ def require_auth_client_or_redirect(endpoint: str):
 
 @app.route("/")
 def hello():
-    resources = fetch_resources(
-        "id,title,type,subject,semester,file_url,tags,created_at"
-    )
+    resources = fetch_resources_for_admin()
 
     q = (request.args.get("q") or "").strip()
     subject = (request.args.get("subject") or "").strip()
@@ -615,6 +726,21 @@ def resource_detail(resource_id: int):
         related_resources=related,
         share_url=share_url,
     )
+
+
+@app.route("/resources/<int:resource_id>/open")
+def open_resource(resource_id: int):
+    resource = fetch_resource_open_target(resource_id)
+    if not resource:
+        abort(404)
+
+    source = (request.args.get("src") or "unknown").strip() or "unknown"
+    record_resource_open(resource, source)
+
+    target_url = build_signed_blob_url(resource.get("file_url") or "")
+    if not target_url:
+        abort(404)
+    return redirect(target_url, code=302)
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -962,6 +1088,61 @@ def delete_resource(resource_id: int):
 
     flash("Resource deleted successfully.", "success")
     return redirect(url_for("admin"))
+
+
+@app.route("/sitemap.xml")
+def sitemap():
+    """Generate dynamic XML sitemap for search engines."""
+    resources = fetch_resources("id,created_at")
+    site_root = SITE_URL or request.url_root.rstrip("/")
+
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+
+    # Main page
+    lines.append(
+        f"  <url>"
+        f"<loc>{site_root}/</loc>"
+        f"<changefreq>daily</changefreq>"
+        f"<priority>1.0</priority>"
+        f"</url>"
+    )
+
+    # Resource detail pages
+    for resource in resources:
+        resource_id = resource.get("id")
+        if not resource_id:
+            continue
+        last_mod = (resource.get("created_at") or "").split("T")[0]
+        lines.append(
+            f"  <url>"
+            f"<loc>{site_root}/resources/{resource_id}</loc>"
+            f"<lastmod>{last_mod}</lastmod>"
+            f"<changefreq>weekly</changefreq>"
+            f"<priority>0.8</priority>"
+            f"</url>"
+        )
+
+    lines.append("</urlset>")
+    return "\n".join(lines), 200, {"Content-Type": "application/xml"}
+
+
+@app.route("/robots.txt")
+def robots():
+    """Serve robots.txt with dynamic sitemap URL."""
+    domain = SITE_URL or request.url_root.rstrip("/")
+    content = f"""User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /upload
+Disallow: /resources/*/open
+
+Sitemap: {domain}/sitemap.xml
+"""
+    return content, 200, {"Content-Type": "text/plain"}
 
 
 @app.errorhandler(400)

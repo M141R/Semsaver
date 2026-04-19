@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 {% set active_page = "repository" %}
+{% block head_meta %}
+    <meta name="description" content="Submit study resources for moderation on BITVault.">
+    <meta property="og:title" content="Submit a Resource | BITVault">
+    <meta property="og:description" content="Contribute notes, syllabi, or papers to BITVault. Help your peers with curated study materials.">
+    <meta name="robots" content="noindex, follow">
+{% endblock %}
 {% block content %}
     <section class="hero upload-hero">
         <p class="eyebrow">COMMUNITY CONTRIBUTION</p>

@@ -1,8 +1,34 @@
 {% extends "base.html" %}
 {% set active_page = "repository" %}
 {% block head_meta %}
-    <meta property="og:title" content="BITVault Library">
-    <meta property="og:description" content="Browse notes, syllabi, and papers on BITVault.">
+        <meta name="description" content="Browse BITVault study resources including notes, syllabi, and papers. Filter by subject, type, and semester.">
+    <meta property="og:title" content="BITVault Study Material Repository">
+    <meta property="og:description" content="Browse curated notes, syllabi, and papers. Search by subject, type, and semester.">
+        <meta property="og:url" content="{{ canonical_url }}">
+    <meta property="og:type" content="website">
+        <meta name="twitter:url" content="{{ canonical_url }}">
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": "BITVault Repository",
+            "url": "{{ canonical_url }}",
+            "description": "Repository of notes, syllabi, and papers for students.",
+            "mainEntity": {
+                "@type": "ItemList",
+                "itemListElement": [
+                    {% for item in data[:12] %}
+                    {
+                        "@type": "ListItem",
+                        "position": {{ loop.index }},
+                        "url": "{{ url_for('resource_detail', resource_id=item.id, _external=True) }}",
+                        "name": {{ (item.title or 'Untitled Resource')|tojson }}
+                    }{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ]
+            }
+        }
+        </script>
 {% endblock %}
 {% block content %}
     <section class="hero">
@@ -85,7 +111,7 @@
                         <span>{{ (item.created_at or '')[:10] or 'N/A' }}</span>
                     </div>
                     <div class="resource-actions">
-                        <a href="{{ item.file_url }}" class="download-btn" target="_blank" rel="noopener">Open Resource</a>
+                        <a href="{{ url_for('open_resource', resource_id=item.id, src='index_card') }}" class="download-btn" target="_blank" rel="noopener">Open Resource</a>
                         <a href="{{ url_for('resource_detail', resource_id=item.id) }}" class="secondary-btn">View Details</a>
                         <button class="secondary-btn share-btn" type="button" data-share-url="{{ url_for('resource_detail', resource_id=item.id, _external=True) }}">Copy Link</button>
                     </div>

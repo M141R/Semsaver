@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Allow: /resources/
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /upload
+
+Sitemap: https://bitvault.example.com/sitemap.xml

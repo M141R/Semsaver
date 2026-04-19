@@ -4,7 +4,30 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{{ title or "BITVault" }}</title>
-        <meta name="description" content="BITVault is a curated repository of notes, syllabi, and papers for students.">
+        <meta name="description" content="BITVault is a curated repository of notes, syllabi, and papers for students. Search and download study materials.">
+        <meta name="keywords" content="study materials, notes, syllabi, papers, academic resources, learning, student community">
+        <meta name="author" content="BITVault">
+        <meta name="robots" content="{{ meta_robots or default_robots }}">
+        <meta name="googlebot" content="{{ meta_robots or default_robots }}">
+        <link rel="canonical" href="{{ canonical_url }}">
+        <link rel="alternate" hreflang="en" href="{{ canonical_url }}">
+        <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon16.svg') }}">
+        <link rel="apple-touch-icon" href="{{ url_for('static', filename='ogimage.png') }}">
+        <meta property="og:type" content="website">
+        <meta property="og:site_name" content="BITVault">
+        <meta property="og:url" content="{{ canonical_url }}">
+        <meta property="og:title" content="{{ title or 'BITVault - Study Material Repository' }}">
+        <meta property="og:description" content="BITVault is a curated repository of notes, syllabi, and papers for students.">
+        <meta property="og:image" content="{{ url_for('static', filename='ogimage.png', _external=True) }}">
+        <meta property="og:image:secure_url" content="{{ url_for('static', filename='ogimage.png', _external=True) }}">
+        <meta property="og:image:alt" content="BITVault - Study Material Repository">
+        <meta property="og:locale" content="en_US">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ title or 'BITVault' }}">
+        <meta name="twitter:description" content="Browse curated study materials on BITVault.">
+        <meta name="twitter:image" content="{{ url_for('static', filename='ogimage.png', _external=True) }}">
+        <meta name="twitter:image:alt" content="BITVault - Study Material Repository">
+        <meta name="theme-color" content="#173f73">
         {% block head_meta %}{% endblock %}
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,22 +48,43 @@
               href="{{ url_for('static', filename='styles.css') }}">
         <script defer src="{{ url_for('static', filename='app.js') }}"></script>
         <script defer src="https://analytics.itsmihir.me/script.js" data-website-id="7c78f12c-a931-44ae-accb-5b2c5f322ead"></script>
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "WebApplication",
+            "name": "BITVault",
+            "url": "{{ base_site_url }}",
+            "description": "A curated repository of notes, syllabus, and papers for students",
+            "image": "{{ url_for('static', filename='ogimage.png', _external=True) }}",
+            "logo": "{{ url_for('static', filename='logo.svg', _external=True) }}",
+            "applicationCategory": "EducationalApplication",
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "INR"
+            },
+            "author": {
+                "@type": "Organization",
+                "name": "BITVault"
+            }
+        }
+        </script>
     </head>
     <body>
         <a class="skip-link" href="#main-content">Skip to content</a>
         <div class="page-shell">
             <header class="topbar">
-                <a class="brand" href="{{ url_for('hello') }}">BITVault</a>
+                <a class="brand" href="{{ url_for('hello') }}">
+                    <img src="{{ url_for('static', filename='logo.svg') }}" alt="BITVault logo" class="brand-logo">
+                </a>
                 <nav class="main-nav" aria-label="Primary">
                     <a class="{% if active_page|default('repository') == 'repository' %}active{% endif %}"
                        href="{{ url_for('hello') }}">Repository</a>
                     <a class="{% if active_page == 'notes' %}active{% endif %}" href="{{ url_for('hello', type='Note') }}">Notes</a>
-                    <a class="{% if active_page == 'syllabi' %}active{% endif %}" href="{{ url_for('hello', type='Syllabus') }}">Syllabi</a>
+                    <a class="{% if active_page == 'syllabi' %}active{% endif %}" href="{{ url_for('hello', type='Syllabus') }}">Syllabus</a>
                     <a class="{% if active_page == 'papers' %}active{% endif %}" href="{{ url_for('hello', type='Paper') }}">Papers</a>
                 </nav>
                 <div class="top-actions">
-                    <button class="icon-btn" aria-label="Notifications">&#128276;</button>
-                    <button class="icon-btn" aria-label="Bookmarks">&#128278;</button>
                     <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark mode">&#9788;</button>
                     {% if current_user.is_authenticated %}
                         <a class="sign-in" href="{{ url_for('admin') }}">Dashboard</a>
@@ -58,7 +102,9 @@
                 {% block content %}{% endblock %}
             </main>
             <footer class="page-footer">
-                <p class="footer-brand">BITVault</p>
+                <p class="footer-brand">
+                    <img src="{{ url_for('static', filename='logo.svg') }}" alt="BITVault logo" class="footer-logo">
+                </p>
                 <p class="copyright">&copy; 2026 BITVAULT. ALL RIGHTS RESERVED.</p>
             </footer>
         </div>

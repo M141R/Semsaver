@@ -2,8 +2,34 @@
 {% set active_page = "repository" %}
 {% block head_meta %}
     <meta property="og:title" content="{{ resource.title or 'Resource' }} | BITVault">
-    <meta property="og:description" content="View and share curated academic resources on BITVault.">
+    <meta property="og:description" content="View curated academic resource on BITVault. Type: {{ resource.type }}, Subject: {{ resource.subject }}, Semester: {{ resource.semester }}">
     <meta property="og:url" content="{{ share_url }}">
+    <meta property="og:type" content="article">
+    <meta property="og:image" content="{{ url_for('static', filename='ogimage.png', _external=True) }}">
+    <meta property="og:image:alt" content="{{ resource.title or 'BITVault Resource' }}">
+    <meta name="twitter:url" content="{{ share_url }}">
+    <meta name="twitter:title" content="{{ resource.title or 'Resource' }} | BITVault">
+    <meta name="twitter:description" content="Study material: {{ resource.type }} - {{ resource.subject }}">
+    <meta name="twitter:image" content="{{ url_for('static', filename='ogimage.png', _external=True) }}">
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "ScholarlyArticle",
+        "headline": "{{ resource.title or 'Untitled Resource' }}",
+        "description": "{{ resource.type }} for {{ resource.subject }} - Semester {{ resource.semester }}",
+        "url": "{{ share_url }}",
+        "datePublished": "{{ resource.created_at or '' }}",
+        "keywords": "{{ resource.tags|join(', ') if resource.tags else resource.subject }}",
+        "about": {
+            "@type": "Thing",
+            "name": "{{ resource.subject }}"
+        },
+        "author": {
+            "@type": "Organization",
+            "name": "BITVault Community"
+        }
+    }
+    </script>
 {% endblock %}
 {% block content %}
     <section class="detail-hero">
@@ -11,7 +37,7 @@
         <h1>{{ resource.title or 'Untitled Resource' }}</h1>
         <p class="hero-copy">Deep preview, metadata, and related study materials in one place.</p>
         <div class="detail-quick-actions">
-            <a href="{{ resource.file_url }}" target="_blank" rel="noopener" class="download-btn">Open Full PDF</a>
+            <a href="{{ url_for('open_resource', resource_id=resource.id, src='detail_primary') }}" target="_blank" rel="noopener" class="download-btn">Open Full PDF</a>
             <button class="secondary-btn share-btn" type="button" data-share-url="{{ share_url }}">Copy Share Link</button>
             <a class="secondary-btn" href="https://twitter.com/intent/tweet?url={{ share_url|urlencode }}&text={{ (resource.title or 'Check this resource')|urlencode }}" target="_blank" rel="noopener">Share on X</a>
         </div>
@@ -67,7 +93,7 @@
                         <p class="resource-subject">{{ item.subject or '-' }} | Sem {{ item.semester or '-' }}</p>
                         <div class="resource-actions">
                             <a href="{{ url_for('resource_detail', resource_id=item.id) }}" class="secondary-btn">View Details</a>
-                            <a href="{{ item.file_url }}" class="download-btn" target="_blank" rel="noopener">Open PDF</a>
+                            <a href="{{ url_for('open_resource', resource_id=item.id, src='detail_related') }}" class="download-btn" target="_blank" rel="noopener">Open PDF</a>
                         </div>
                     </article>
                 {% endfor %}
