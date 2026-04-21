@@ -138,6 +138,28 @@ def get_user_role(user_id: str):
     return None
 
 
+def ensure_user_role(user_id: str, role: str = "student"):
+    if not supabase or not user_id:
+        return False
+    try:
+        existing = (
+            supabase.table("user_roles")
+            .select("user_id")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            return True
+
+        supabase.table("user_roles").insert(
+            {"user_id": user_id, "role": role}
+        ).execute()
+        return True
+    except Exception:
+        return False
+
+
 @login_manager.user_loader
 def load_user(user_id: str):
     role = get_user_role(user_id)
@@ -629,18 +651,29 @@ def record_resource_open(resource: dict, source: str):
     except Exception:
         pass
 
-    # Fallback increment if open_count exists on resources table.
-    if "open_count" in resource:
-        current_count = int(resource.get("open_count") or 0)
-        try:
+    # Fallback increment for schemas that expose open_count but do not use RPC.
+    try:
+        current_count = resource.get("open_count")
+        if current_count is None:
+            lookup = (
+                supabase.table("resources")
+                .select("open_count")
+                .eq("id", resource_id)
+                .limit(1)
+                .execute()
+            )
+            if lookup.data:
+                current_count = lookup.data[0].get("open_count")
+
+        if current_count is not None:
             supabase.table("resources").update(
                 {
-                    "open_count": current_count + 1,
+                    "open_count": int(current_count or 0) + 1,
                     "last_opened_at": datetime.now(timezone.utc).isoformat(),
                 }
             ).eq("id", resource_id).execute()
-        except Exception:
-            pass
+    except Exception:
+        pass
 
 
 def require_supabase_or_redirect():
@@ -842,7 +875,13 @@ def auth_login():
 
         try:
             if mode == "register":
-                supabase_auth.auth.sign_up({"email": email, "password": password})
+                sign_up_response = supabase_auth.auth.sign_up(
+                    {"email": email, "password": password}
+                )
+                sign_up_user = getattr(sign_up_response, "user", None)
+                sign_up_user_id = getattr(sign_up_user, "id", None)
+                if sign_up_user_id:
+                    ensure_user_role(sign_up_user_id, "student")
                 flash(
                     "Registration successful. Verify email if required, then log in.",
                     "success",
@@ -861,10 +900,15 @@ def auth_login():
 
             role = get_user_role(auth_user.id)
             if not role:
-                error = "Role not assigned for this account. Contact admin."
-                return render_template(
-                    "admin/login.html", title=f"{APP_NAME} Auth | Login", error=error
-                )
+                if ensure_user_role(auth_user.id, "student"):
+                    role = "student"
+                else:
+                    error = "Role not assigned for this account. Contact admin."
+                    return render_template(
+                        "admin/login.html",
+                        title=f"{APP_NAME} Auth | Login",
+                        error=error,
+                    )
 
             login_user(AppUser(auth_user.id, role))
             return redirect(url_for("admin"))
@@ -940,9 +984,7 @@ def admin():
         flash("Resource saved successfully.", "success")
         return redirect(url_for("admin"))
 
-    resources = fetch_resources(
-        "id,title,type,subject,semester,file_url,tags,created_at"
-    )
+    resources = fetch_resources_for_admin()
     resolved_resources = with_resolved_file_urls(resources)
     pending_submissions = fetch_submissions("pending")
     reviewed_submissions = fetch_submissions(None, limit=10)

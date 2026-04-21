@@ -14,6 +14,20 @@
   --control-bg: #f5f8fc;
   --control-bg-muted: #e9eff7;
   --surface-raise: #ecf1f8;
+  --surface-soft: #f8fbff;
+  --field-bg: #ffffff;
+  --field-border: #d1dceb;
+  --field-text: #1f2a3a;
+  --dropzone-bg: #f4f8fd;
+  --dropzone-border: #c5d2e5;
+  --dropzone-icon: #8da0bd;
+  --sidecard-grad-1: #234c82;
+  --sidecard-grad-2: #18395f;
+  --sidecard-grad-3: #132a45;
+  --sidecard-text: #dbe8fa;
+  --sidecard-note: #c7dcfa;
+  --sidecard-pill-border: rgba(211, 228, 249, 0.35);
+  --sidecard-pill-bg: rgba(255, 255, 255, 0.08);
   --tag-note-bg: #c9f0d7;
   --tag-note-text: #2f7b4c;
   --tag-syllabus-bg: #d8e5ff;
@@ -44,6 +58,20 @@ body[data-theme="dark"] {
   --control-bg: #1a283b;
   --control-bg-muted: #223249;
   --surface-raise: #25344b;
+  --surface-soft: #1b2a3f;
+  --field-bg: #101c2d;
+  --field-border: #2e435d;
+  --field-text: #e6edf8;
+  --dropzone-bg: #12243a;
+  --dropzone-border: #37506e;
+  --dropzone-icon: #9eb7da;
+  --sidecard-grad-1: #2a4f84;
+  --sidecard-grad-2: #1b3658;
+  --sidecard-grad-3: #13273f;
+  --sidecard-text: #e3edfb;
+  --sidecard-note: #c9daf3;
+  --sidecard-pill-border: rgba(190, 214, 244, 0.4);
+  --sidecard-pill-bg: rgba(255, 255, 255, 0.1);
   --tag-note-bg: #2a4d3a;
   --tag-note-text: #b7efcb;
   --tag-syllabus-bg: #273f69;
@@ -265,6 +293,127 @@ body[data-theme="dark"] .topbar {
 
 .public-upload-form {
   max-width: 900px;
+}
+
+.contribution-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.contribution-role,
+.contribution-time {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  padding: 7px 10px;
+  border-radius: 999px;
+}
+
+.public-upload-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+
+.contribution-form {
+  border-radius: 14px;
+  padding: 18px;
+  gap: 14px;
+  box-shadow: 0 14px 35px rgba(14, 34, 63, 0.08);
+}
+
+.form-section-head h2,
+.form-section-head h3 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.form-section-head h3 {
+  font-size: 15px;
+}
+
+.form-section-head p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.form-section-head.compact {
+  border-top: 1px dashed var(--line);
+  padding-top: 12px;
+}
+
+.contribution-dropzone {
+  min-height: 154px;
+}
+
+.contribution-submit-row {
+  padding-top: 6px;
+}
+
+.contribution-sidecard {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: radial-gradient(
+    circle at top right,
+    var(--sidecard-grad-1) 0,
+    var(--sidecard-grad-2) 45%,
+    var(--sidecard-grad-3) 100%
+  );
+  color: var(--sidecard-text);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  position: sticky;
+  top: 84px;
+}
+
+.contribution-sidecard h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 20px;
+}
+
+.contribution-sidecard ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.contribution-sidecard li {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.contribution-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contribution-pills span {
+  border: 1px solid var(--sidecard-pill-border);
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  background: var(--sidecard-pill-bg);
+}
+
+.contribution-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sidecard-note);
 }
 
 .search-panel {
@@ -918,7 +1067,7 @@ body[data-theme="dark"] .topbar {
 .metric-card {
   border-radius: 9px;
   border: 1px solid var(--line);
-  background: #f8fbff;
+  background: var(--surface-soft);
   padding: 10px;
   display: grid;
   gap: 6px;
@@ -958,7 +1107,7 @@ body[data-theme="dark"] .topbar {
 }
 
 .admin-upload-form span {
-  color: #2d394b;
+  color: var(--text-soft);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -967,19 +1116,19 @@ body[data-theme="dark"] .topbar {
 .admin-upload-form input,
 .admin-upload-form select,
 .admin-upload-form textarea {
-  border: 1px solid #d1dceb;
+  border: 1px solid var(--field-border);
   border-radius: 8px;
-  background: #fff;
-  color: #1f2a3a;
+  background: var(--field-bg);
+  color: var(--field-text);
   min-height: 40px;
   padding: 0 10px;
   font-size: 13px;
 }
 
 .admin-dropzone {
-  border: 1px dashed #c5d2e5;
+  border: 1px dashed var(--dropzone-border);
   border-radius: 10px;
-  background: #f4f8fd;
+  background: var(--dropzone-bg);
   min-height: 130px;
   display: grid;
   place-items: center;
@@ -989,7 +1138,7 @@ body[data-theme="dark"] .topbar {
 
 .admin-drop-icon {
   font-size: 20px;
-  color: #8da0bd;
+  color: var(--dropzone-icon);
 }
 
 .admin-dropzone p {
@@ -1363,6 +1512,14 @@ body[data-theme="dark"] .topbar {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
+  .public-upload-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .contribution-sidecard {
+    position: static;
+  }
+
   .admin-dashboard-shell {
     grid-template-columns: 1fr;
   }
@@ -1425,6 +1582,10 @@ body[data-theme="dark"] .topbar {
 
   .admin-field-grid {
     grid-template-columns: 1fr;
+  }
+
+  .contribution-form {
+    padding: 14px;
   }
 
   .admin-metrics {

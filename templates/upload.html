@@ -10,15 +10,18 @@
     <section class="hero upload-hero">
         <p class="eyebrow">COMMUNITY CONTRIBUTION</p>
         <h1>
-            Submit a resource for
+            Share a resource for
             <br>
             <em>moderation review.</em>
         </h1>
         <p class="hero-copy">
-            Anyone can upload notes, papers, and syllabi. Every submission is reviewed by
+            Anyone can upload notes, papers, and syllabus. Every submission is reviewed by
             an admin before it appears in the public library.
         </p>
-        <p class="hero-copy">Signed in role: {{ current_role() or 'student' }}</p>
+        <div class="contribution-meta-row">
+            <p class="hero-copy contribution-role">Signed in as <strong>{{ current_role() or 'student' }}</strong></p>
+            <p class="hero-copy contribution-time">Estimated time: under 1 minute</p>
+        </div>
     </section>
 
     <section class="public-upload-wrap" aria-label="Public upload form">
@@ -32,66 +35,96 @@
             {% endif %}
         {% endwith %}
 
-        <form class="admin-upload-form public-upload-form" method="post" enctype="multipart/form-data" action="{{ url_for('public_upload') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="public-upload-layout">
+            <form class="admin-upload-form public-upload-form contribution-form" method="post" enctype="multipart/form-data" action="{{ url_for('public_upload') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <div class="admin-field-grid">
+                <div class="form-section-head">
+                    <h2>Resource details</h2>
+                    <p>Add clean metadata so others can find your file quickly.</p>
+                </div>
+
+                <div class="admin-field-grid">
+                    <label>
+                        <span>TITLE</span>
+                        <input type="text" name="title" placeholder="Basic Electronics Unit 2" required>
+                    </label>
+                    <label>
+                        <span>SUBJECT</span>
+                        <input type="text" name="subject" placeholder="Basic Electronics" required>
+                    </label>
+                    <label>
+                        <span>TYPE</span>
+                        <select name="type" required>
+                            <option value="">Select Type</option>
+                            <option value="Note">Note</option>
+                            <option value="Syllabus">Syllabus</option>
+                            <option value="Paper">Paper</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>SEMESTER</span>
+                        <select name="semester" required>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                        </select>
+                    </label>
+                </div>
+
                 <label>
-                    <span>TITLE</span>
-                    <input type="text" name="title" placeholder="Basic Electronics Unit 2" required>
+                    <span>TAGS</span>
+                    <input type="text" name="tags" placeholder="important, handwritten, sem-2">
                 </label>
+
+                <div class="form-section-head compact">
+                    <h3>Choose one source</h3>
+                    <p>Upload a PDF or provide an external URL.</p>
+                </div>
+
                 <label>
-                    <span>SUBJECT</span>
-                    <input type="text" name="subject" placeholder="Basic Electronics" required>
+                    <span>EXTERNAL FILE URL (OPTIONAL)</span>
+                    <input type="url" name="file_url" placeholder="https://drive.google.com/...">
                 </label>
-                <label>
-                    <span>TYPE</span>
-                    <select name="type" required>
-                        <option value="">Select Type</option>
-                        <option value="Note">Note</option>
-                        <option value="Syllabus">Syllabus</option>
-                        <option value="Paper">Paper</option>
-                    </select>
-                </label>
-                <label>
-                    <span>SEMESTER</span>
-                    <select name="semester" required>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                        <option value="5">5</option>
-                        <option value="6">6</option>
-                        <option value="7">7</option>
-                        <option value="8">8</option>
-                    </select>
-                </label>
-            </div>
 
-            <label>
-                <span>TAGS</span>
-                <input type="text" name="tags" placeholder="important, handwritten, sem-2">
-            </label>
+                <div class="admin-dropzone contribution-dropzone" role="button" tabindex="0" aria-label="Upload area">
+                    <div class="admin-drop-icon">&#9729;</div>
+                    <p>Upload PDF for moderation</p>
+                    <small>Max size for public uploads: {{ public_upload_max_mb }}MB</small>
+                    <label class="dropzone-file-label">
+                        <input class="dropzone-file-input" type="file" name="resource_file" accept="application/pdf,.pdf">
+                        <span>SELECT FILE FROM DEVICE</span>
+                    </label>
+                    <small class="dropzone-helper">Use either file upload or external URL. Do not use both.</small>
+                </div>
 
-            <label>
-                <span>EXTERNAL FILE URL (OPTIONAL)</span>
-                <input type="url" name="file_url" placeholder="https://drive.google.com/...">
-            </label>
+                <div class="admin-form-actions contribution-submit-row">
+                    <button type="submit" class="admin-submit-btn">Submit to BITVault</button>
+                </div>
+            </form>
 
-            <div class="admin-dropzone" role="button" tabindex="0" aria-label="Upload area">
-                <div class="admin-drop-icon">&#9729;</div>
-                <p>Upload PDF for moderation</p>
-                <small>Max size for public uploads: {{ public_upload_max_mb }}MB</small>
-                <label class="dropzone-file-label">
-                    <input class="dropzone-file-input" type="file" name="resource_file" accept="application/pdf,.pdf">
-                    <span>SELECT FILE FROM DEVICE</span>
-                </label>
-                <small class="dropzone-helper">Use either file upload or external URL. Do not use both.</small>
-            </div>
+            <aside class="contribution-sidecard" aria-label="Contribution guide">
+                <h3>Before you submit</h3>
+                <ul>
+                    <li>Use a clear title with unit/topic name.</li>
+                    <li>Select the correct type and semester.</li>
+                    <li>Add tags for faster discovery.</li>
+                    <li>Upload only readable, final PDFs.</li>
+                </ul>
 
-            <div class="admin-form-actions">
-                <button type="submit" class="admin-submit-btn">Submit to BITVault</button>
-            </div>
-        </form>
+                <div class="contribution-pills">
+                    <span>Peer-reviewed by moderators</span>
+                    <span>Usually approved same day</span>
+                    <span>Visible to all students</span>
+                </div>
+
+                <p class="contribution-note">Need edits after submitting? Re-upload with an updated title and mention v2 in tags.</p>
+            </aside>
+        </div>
     </section>
 {% endblock %}
