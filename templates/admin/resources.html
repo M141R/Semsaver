@@ -1,0 +1,83 @@
+{% extends 'admin/layout.html' %}
+
+{% block content %}
+<h1>All Resources</h1>
+<p>Manage published library resources and their open counts.</p>
+
+<div class="admin-metrics">
+    <article class="metric-card">
+        <span>Total Resources</span>
+        <strong>{{ stats.total }}</strong>
+    </article>
+    <article class="metric-card">
+        <span>Notes</span>
+        <strong>{{ stats.notes }}</strong>
+    </article>
+    <article class="metric-card">
+        <span>Syllabi</span>
+        <strong>{{ stats.syllabi }}</strong>
+    </article>
+    <article class="metric-card">
+        <span>Papers</span>
+        <strong>{{ stats.papers }}</strong>
+    </article>
+</div>
+
+<section class="resource-admin-table" aria-label="All resources">
+    <div class="resource-admin-head">
+        <h2>Published Resources</h2>
+        <span>{{ resources|length }} TOTAL</span>
+    </div>
+    <div class="resource-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Subject</th>
+                    <th>Sem</th>
+                    <th>Opens</th>
+                    <th>Link</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if resources %}
+                    {% for item in resources %}
+                        <tr>
+                            <td>{{ item.title or '-' }}</td>
+                            <td>{{ item.type or '-' }}</td>
+                            <td>{{ item.subject or '-' }}</td>
+                            <td>{{ item.semester or '-' }}</td>
+                            <td>{{ item.open_count or 0 }}</td>
+                            <td>
+                                <a href="{{ url_for('open_resource', resource_id=item.id, src='admin_resource_table') }}"
+                                   target="_blank"
+                                   rel="noopener"
+                                   data-track-resource-open="1"
+                                   data-resource-id="{{ item.id }}"
+                                   data-resource-source="admin_resource_table"
+                                   data-resource-type="{{ item.type or '' }}"
+                                   data-resource-subject="{{ item.subject or '' }}">Open</a>
+                            </td>
+                            <td>
+                                <div class="table-actions">
+                                    <a class="secondary-btn table-edit-btn" href="{{ url_for('edit_resource', resource_id=item.id) }}">Edit</a>
+                                    <form action="{{ url_for('delete_resource', resource_id=item.id) }}" method="post">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="delete-btn" type="submit">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7">No resources available yet.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

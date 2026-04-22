@@ -75,7 +75,7 @@
         <div class="page-shell">
             <header class="topbar">
                 <a class="brand" href="{{ url_for('hello') }}">
-                    <img src="{{ url_for('static', filename='logo.svg') }}" alt="BITVault logo" class="brand-logo">
+                    <img src="{{ url_for('static', filename='logo.svg') }}" alt="BITVault logo" class="site-logo">
                 </a>
                 <nav class="main-nav" aria-label="Primary">
                     <a class="{% if active_page|default('repository') == 'repository' %}active{% endif %}"
@@ -85,7 +85,9 @@
                     <a class="{% if active_page == 'papers' %}active{% endif %}" href="{{ url_for('hello', type='Paper') }}">Papers</a>
                 </nav>
                 <div class="top-actions">
-                    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark mode">&#9788;</button>
+                    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark mode">
+                        <img src="{{ url_for('static', filename='moon.svg') }}" alt="Theme" class="theme-toggle-icon">
+                    </button>
                     {% if current_user.is_authenticated %}
                         <a class="sign-in" href="{{ url_for('admin') }}">Dashboard</a>
                         <form action="{{ url_for('admin_logout') }}" method="post" class="inline-form">
@@ -103,7 +105,7 @@
             </main>
             <footer class="page-footer">
                 <p class="footer-brand">
-                    <img src="{{ url_for('static', filename='logo.svg') }}" alt="BITVault logo" class="footer-logo">
+                    <img src="{{ url_for('static', filename='logo.svg') }}" alt="BITVault logo" class="site-logo">
                 </p>
                 <p class="copyright">&copy; 2026 BITVAULT. ALL RIGHTS RESERVED.</p>
             </footer>

@@ -111,7 +111,17 @@
                         <span>{{ (item.created_at or '')[:10] or 'N/A' }}</span>
                     </div>
                     <div class="resource-actions">
-                        <a href="{{ url_for('open_resource', resource_id=item.id, src='index_card') }}" class="download-btn" target="_blank" rel="noopener">Open Resource</a>
+                        <a
+                            href="{{ url_for('open_resource', resource_id=item.id, src='index_card') }}"
+                            class="download-btn"
+                            target="_blank"
+                            rel="noopener"
+                            data-track-resource-open="1"
+                            data-resource-id="{{ item.id }}"
+                            data-resource-source="index_card"
+                            data-resource-type="{{ item.type or '' }}"
+                            data-resource-subject="{{ item.subject or '' }}"
+                        >Open Resource</a>
                         <a href="{{ url_for('resource_detail', resource_id=item.id) }}" class="secondary-btn">View Details</a>
                         <button class="secondary-btn share-btn" type="button" data-share-url="{{ url_for('resource_detail', resource_id=item.id, _external=True) }}">Copy Link</button>
                     </div>

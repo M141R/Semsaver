@@ -14,7 +14,9 @@
 	<div class="admin-dashboard-shell">
 		<aside class="admin-sidebar">
 			<div>
-				<a class="admin-sidebar-brand" href="{{ url_for('hello') }}">BITVault</a>
+				<a class="admin-sidebar-brand" href="{{ url_for('hello') }}">
+					<img src="{{ url_for('static', filename='logo.svg') }}" alt="Site logo" class="site-logo">
+				</a>
 				<p class="admin-sidebar-title">Admin Console</p>
 				<p class="admin-sidebar-subtitle">Study Material Hub</p>
 
@@ -41,6 +43,9 @@
 
 		<div class="admin-main-wrap">
 			<header class="admin-topbar">
+				<a class="admin-top-logo" href="{{ url_for('hello') }}">
+					<img src="{{ url_for('static', filename='logo.svg') }}" alt="Site logo" class="site-logo">
+				</a>
 				<nav class="admin-top-links" aria-label="Top navigation">
 					<a class="active" href="{{ url_for('admin') }}">Dashboard</a>
 					<a href="#moderation-queue">Moderation</a>
@@ -48,9 +53,9 @@
 					<a href="{{ url_for('hello') }}">Public Library</a>
 				</nav>
 				<div class="admin-top-actions">
-					<button class="admin-icon-btn" aria-label="Notifications">&#128276;</button>
-					<button class="admin-icon-btn" aria-label="Settings">&#9881;</button>
-					<div class="admin-avatar">A</div>
+					<button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark mode">
+						<img src="{{ url_for('static', filename='moon.svg') }}" alt="Theme" class="theme-toggle-icon">
+					</button>
 					<form action="{{ url_for('admin_logout') }}" method="post" class="inline-form">
 						<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 						<button type="submit" class="admin-upload-btn">Logout</button>
@@ -235,12 +240,15 @@
 												<td>{{ item.subject or '-' }}</td>
 												<td>{{ item.semester or '-' }}</td>
 												<td>{{ item.open_count or 0 }}</td>
-												<td><a href="{{ url_for('open_resource', resource_id=item.id, src='admin_resource_table') }}" target="_blank" rel="noopener">Open</a></td>
+												<td><a href="{{ url_for('open_resource', resource_id=item.id, src='admin_resource_table') }}" target="_blank" rel="noopener" data-track-resource-open="1" data-resource-id="{{ item.id }}" data-resource-source="admin_resource_table" data-resource-type="{{ item.type or '' }}" data-resource-subject="{{ item.subject or '' }}">Open</a></td>
 												<td>
-													<form action="{{ url_for('delete_resource', resource_id=item.id) }}" method="post">
-														<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-														<button class="delete-btn" type="submit">Delete</button>
-													</form>
+													<div class="table-actions">
+														<a class="secondary-btn table-edit-btn" href="{{ url_for('edit_resource', resource_id=item.id) }}">Edit</a>
+														<form action="{{ url_for('delete_resource', resource_id=item.id) }}" method="post">
+															<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+															<button class="delete-btn" type="submit">Delete</button>
+														</form>
+													</div>
 												</td>
 											</tr>
 										{% endfor %}
@@ -318,7 +326,7 @@
 					</div>
 
 					<section class="admin-tips-box">
-						<h3>BITVault Tips</h3>
+						<h3>Contributor Tips</h3>
 						<p>
 							Use clear titles and accurate type labels so students can filter quickly. Prefer semester and subject tags on every upload.
 						</p>
@@ -328,5 +336,6 @@
 			</main>
 		</div>
 	</div>
+	<script defer src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

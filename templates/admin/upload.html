@@ -1,0 +1,109 @@
+{% extends 'admin/layout.html' %}
+
+{% block content %}
+<h1>Upload Resource</h1>
+<p>Upload notes, syllabi, and papers for your college community.</p>
+
+<div class="admin-metrics">
+    <article class="metric-card">
+        <span>Total Resources</span>
+        <strong>{{ stats.total }}</strong>
+    </article>
+    <article class="metric-card">
+        <span>Notes</span>
+        <strong>{{ stats.notes }}</strong>
+    </article>
+    <article class="metric-card">
+        <span>Syllabi</span>
+        <strong>{{ stats.syllabi }}</strong>
+    </article>
+    <article class="metric-card">
+        <span>Papers</span>
+        <strong>{{ stats.papers }}</strong>
+    </article>
+</div>
+
+<form class="admin-upload-form" method="post" action="{{ url_for('admin_upload') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="admin-field-grid">
+        <label>
+            <span>TITLE</span>
+            <input type="text" name="title" placeholder="Partial Differential Equations - Unit 1" required>
+        </label>
+        <label>
+            <span>SUBJECT</span>
+            <input type="text" name="subject" placeholder="Mathematics" required>
+        </label>
+        <label>
+            <span>TYPE</span>
+            <select name="type" required>
+                <option value="">Select Type</option>
+                <option value="Note">Note</option>
+                <option value="Syllabus">Syllabus</option>
+                <option value="Paper">Paper</option>
+            </select>
+        </label>
+        <label>
+            <span>SEMESTER</span>
+            <select name="semester" required>
+                {% for sem in range(1, 9) %}
+                    <option value="{{ sem }}">{{ sem }}</option>
+                {% endfor %}
+            </select>
+        </label>
+    </div>
+
+    <label>
+        <span>TAGS</span>
+        <input type="text" name="tags" placeholder="sem3, urgent, handwritten">
+    </label>
+
+    <label>
+        <span>EXTERNAL FILE URL (OPTIONAL)</span>
+        <input type="url" name="file_url" placeholder="Google Drive link or direct public URL">
+    </label>
+
+    <div class="admin-dropzone" role="button" tabindex="0" aria-label="Upload area">
+        <div class="admin-drop-icon">&#9729;</div>
+        <p>Upload PDF to Azure Blob Storage</p>
+        <small>PDF up to 50MB</small>
+        <label class="dropzone-file-label">
+            <input class="dropzone-file-input" type="file" name="resource_file" accept="application/pdf,.pdf">
+            <span>SELECT FILE FROM DEVICE</span>
+        </label>
+        <small class="dropzone-helper">Use either this upload field or external URL above.</small>
+    </div>
+
+    <div class="admin-form-actions">
+        <button type="submit" class="admin-submit-btn">Save Resource</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block sidebar %}
+<div class="admin-feed-head">
+    <h2>Recent Uploads</h2>
+    <span>{{ recent_resources|length }} ITEMS</span>
+</div>
+
+<div class="admin-feed-list">
+    {% if recent_resources %}
+        {% for item in recent_resources %}
+            {% set t = (item.type or '')|lower %}
+            {% set color = 'green' if t == 'note' else ('blue' if t == 'syllabus' else 'amber') %}
+            <article class="admin-feed-item">
+                <div class="feed-icon {{ color }}">&#128196;</div>
+                <div>
+                    <h3>{{ item.title or 'Untitled Resource' }}</h3>
+                    <p>
+                        <span class="pill {{ color }}">{{ item.type or 'RESOURCE' }}</span>
+                        {{ item.subject or 'General' }} | Sem {{ item.semester or '-' }}
+                    </p>
+                </div>
+            </article>
+        {% endfor %}
+    {% else %}
+        <p class="admin-feed-empty">No uploads yet. Add your first resource using the form.</p>
+    {% endif %}
+</div>
+{% endblock %}

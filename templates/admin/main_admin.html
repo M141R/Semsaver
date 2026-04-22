@@ -1,0 +1,104 @@
+{% extends 'admin/layout.html' %}
+
+{% block content %}
+<h1>Roles and Review Logs</h1>
+<p>Current roles in this system: student, moderator, admin. Only admin users can change roles here.</p>
+
+<section class="resource-admin-table" aria-label="Role management table">
+    <div class="resource-admin-head">
+        <h2>Role Management</h2>
+        <span>{{ users|length }} USERS</span>
+    </div>
+    <div class="resource-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Username</th>
+                    <th>Current Role</th>
+                    <th>Change Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if users %}
+                    {% for item in users %}
+                        <tr>
+                            <td>
+                                {{ (item.user_id or '-')[:8] }}
+                                <br>
+                                <small>{{ item.user_id or '-' }}</small>
+                            </td>
+                            <td>{{ item.username or '-' }}</td>
+                            <td>{{ item.role or '-' }}</td>
+                            <td>
+                                <form action="{{ url_for('admin_update_user_role', user_id=item.user_id) }}" method="post" class="inline-form">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <select name="role" required>
+                                        {% for role_name in assignable_roles %}
+                                            <option value="{{ role_name }}" {% if (item.role or '') == role_name %}selected{% endif %}>{{ role_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if item.user_id == current_user.id %}
+                                        <button class="approve-btn" type="button" disabled>Locked</button>
+                                    {% else %}
+                                        <button class="approve-btn" type="submit">Update</button>
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4">No users found.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="resource-admin-table" aria-label="Review activity table">
+    <div class="resource-admin-head">
+        <h2>Review Activity</h2>
+        <span>{{ review_activity|length }} LOGS</span>
+    </div>
+    <div class="resource-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Submission</th>
+                    <th>Status</th>
+                    <th>Reviewer ID</th>
+                    <th>Reviewer Username</th>
+                    <th>Reviewer Role</th>
+                    <th>Reviewed At</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if review_activity %}
+                    {% for item in review_activity %}
+                        <tr>
+                            <td>
+                                {{ item.title or '-' }}
+                                <br>
+                                <small>#{{ item.id or '-' }}</small>
+                            </td>
+                            <td>{{ item.status or '-' }}</td>
+                            <td>{{ item.reviewed_by or '-' }}</td>
+                            <td>{{ item.reviewer_username or '-' }}</td>
+                            <td>{{ item.reviewer_role or '-' }}</td>
+                            <td>{{ (item.reviewed_at or '')[:16] or '-' }}</td>
+                            <td>{{ item.review_note or '-' }}</td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7">No review activity found.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

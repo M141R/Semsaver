@@ -3,13 +3,22 @@
   const htmlRoot = document.documentElement;
   const toggle = document.getElementById("theme-toggle");
   const STORAGE_KEY = "bitvault-theme";
+  const SUN_ICON = "/static/sun.svg";
+  const MOON_ICON = "/static/moon.svg";
+
+  function renderThemeToggleIcon(theme) {
+    if (!toggle) return;
+    const icon = theme === "dark" ? SUN_ICON : MOON_ICON;
+    toggle.innerHTML =
+      '<img src="' + icon + '" alt="Theme" class="theme-toggle-icon">';
+  }
 
   function setTheme(theme) {
     root.setAttribute("data-theme", theme);
     htmlRoot.setAttribute("data-theme", theme);
     localStorage.setItem(STORAGE_KEY, theme);
     if (toggle) {
-      toggle.innerHTML = theme === "dark" ? "&#9790;" : "&#9788;";
+      renderThemeToggleIcon(theme);
       toggle.setAttribute(
         "aria-label",
         theme === "dark" ? "Switch to light mode" : "Switch to dark mode",
@@ -31,6 +40,23 @@
       setTheme(current === "dark" ? "light" : "dark");
     });
   }
+
+  document
+    .querySelectorAll("a[data-track-resource-open='1']")
+    .forEach(function (link) {
+      link.addEventListener("click", function () {
+        if (!window.umami || typeof window.umami.track !== "function") {
+          return;
+        }
+        const payload = {
+          resource_id: link.getAttribute("data-resource-id") || "",
+          source: link.getAttribute("data-resource-source") || "unknown",
+          resource_type: link.getAttribute("data-resource-type") || "",
+          subject: link.getAttribute("data-resource-subject") || "",
+        };
+        window.umami.track("resource_open", payload);
+      });
+    });
 
   document.querySelectorAll(".share-btn").forEach(function (button) {
     button.addEventListener("click", async function () {

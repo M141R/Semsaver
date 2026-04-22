@@ -12,18 +12,20 @@
 </head>
 <body class="admin-login-body">
 	<header class="admin-login-topbar">
-		<a class="admin-login-brand" href="{{ url_for('hello') }}">BITVault</a>
+		<a class="admin-login-brand" href="{{ url_for('hello') }}">
+			<img src="{{ url_for('static', filename='logo.svg') }}" alt="Site logo" class="site-logo">
+		</a>
 		<nav class="admin-login-nav" aria-label="Top links">
 			<a href="{{ url_for('hello') }}">Repository</a>
-			<a href="#">Archives</a>
+			<button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark mode">
+				<img src="{{ url_for('static', filename='moon.svg') }}" alt="Theme" class="theme-toggle-icon">
+			</button>
 		</nav>
 	</header>
 
 	<main class="admin-login-main">
 		<section class="admin-login-card" aria-label="Admin login">
-			<h1>BITVault Login</h1>
-			<p class="admin-login-subtitle">SUPABASE AUTH ACCESS</p>
-
+			<h1>Admin Login</h1>
 			{% if error %}
 				<p class="form-error">{{ error }}</p>
 			{% endif %}
@@ -42,16 +44,28 @@
 				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 				<input type="hidden" name="mode" value="login">
 				<label class="admin-login-field">
-					<span class="admin-lock" aria-hidden="true">&#9993;</span>
+					<input type="text" name="username" placeholder="Username (required for create account)">
+				</label>
+				<label class="admin-login-field">
 					<input type="email" name="email" placeholder="Email" required>
 				</label>
 				<label class="admin-login-field">
-					<span class="admin-lock" aria-hidden="true">&#128274;</span>
 					<input type="password" name="password" placeholder="Password" required>
 				</label>
+				{% if turnstile_site_key %}
+					<div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
+				{% endif %}
 				<button type="submit" class="admin-primary-btn">Login</button>
 				<button type="submit" class="admin-primary-btn admin-secondary-btn" onclick="this.form.mode.value='register'">Create Account</button>
 			</form>
+
+			<p class="admin-login-subtitle">OR</p>
+			<a class="google-auth-btn" href="{{ url_for('auth_google_start') }}" aria-label="Continue with Google">
+				<span class="google-auth-icon" aria-hidden="true">
+					<img src="{{ url_for('static', filename='google.svg') }}" alt="" loading="lazy" decoding="async">
+				</span>
+				<span class="google-auth-text">Sign in with Google</span>
+			</a>
 
 			<a class="admin-link-lite" href="{{ url_for('hello') }}">BACK TO PUBLIC LIBRARY</a>
 		</section>
@@ -63,8 +77,12 @@
 	</main>
 
 	<footer class="admin-login-footer">
-		<p>&copy; 2026 BITVAULT. RESTRICTED ACCESS.</p>
+		<p>&copy; 2026 RESTRICTED ACCESS.</p>
 		<p><a href="#">Privacy</a> <a href="#">Terms</a></p>
 	</footer>
+	{% if turnstile_site_key %}
+		<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+	{% endif %}
+	<script defer src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

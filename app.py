@@ -18,6 +18,7 @@ from flask_login import (
 )
 import os
 import secrets
+import string
 from datetime import datetime, timedelta, timezone
 from urllib.parse import unquote, urlparse
 from uuid import uuid4
@@ -80,6 +81,8 @@ APP_NAME = "BITVault"
 SITE_URL = os.environ.get("SITE_URL", "").strip().rstrip("/")
 RESOURCE_TYPES = {"Note", "Syllabus", "Paper"}
 MODERATOR_ROLES = {"moderator", "admin"}
+ASSIGNABLE_ROLES = ("student", "moderator", "admin")
+TURNSTILE_SITE_KEY = os.environ.get("TURNSTILE_SITE_KEY", "").strip()
 AZURE_STORAGE_CONNECTION_STRING = os.environ.get("AZURE_STORAGE_CONNECTION_STRING", "")
 AZURE_STORAGE_ACCOUNT_NAME = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME", "")
 AZURE_STORAGE_ACCOUNT_KEY = os.environ.get(
@@ -138,9 +141,27 @@ def get_user_role(user_id: str):
     return None
 
 
-def ensure_user_role(user_id: str, role: str = "student"):
+def normalize_username(raw_username: str):
+    candidate = (raw_username or "").strip().lower()
+    if not candidate:
+        return None
+    if len(candidate) < 3 or len(candidate) > 30:
+        raise ValueError("Username must be between 3 and 30 characters.")
+
+    allowed_chars = set(string.ascii_lowercase + string.digits + "._-")
+    if any(ch not in allowed_chars for ch in candidate):
+        raise ValueError(
+            "Username can only contain lowercase letters, numbers, dot, underscore, and hyphen."
+        )
+    return candidate
+
+
+def ensure_user_role(user_id: str, role: str = "student", username: str | None = None):
     if not supabase or not user_id:
         return False
+
+    normalized_username = normalize_username(username or "") if username else None
+
     try:
         existing = (
             supabase.table("user_roles")
@@ -150,11 +171,26 @@ def ensure_user_role(user_id: str, role: str = "student"):
             .execute()
         )
         if existing.data:
+            if normalized_username:
+                try:
+                    supabase.table("user_roles").update(
+                        {"username": normalized_username}
+                    ).eq("user_id", user_id).execute()
+                except Exception:
+                    pass
             return True
 
-        supabase.table("user_roles").insert(
-            {"user_id": user_id, "role": role}
-        ).execute()
+        payload = {"user_id": user_id, "role": role}
+        if normalized_username:
+            payload["username"] = normalized_username
+
+        try:
+            supabase.table("user_roles").insert(payload).execute()
+        except Exception:
+            # Backward compatible fallback when username column is not present.
+            supabase.table("user_roles").insert(
+                {"user_id": user_id, "role": role}
+            ).execute()
         return True
     except Exception:
         return False
@@ -223,6 +259,7 @@ def inject_template_globals():
         "csrf_token": get_csrf_token,
         "public_upload_max_mb": PUBLIC_UPLOAD_MAX_MB,
         "current_role": current_role,
+        "turnstile_site_key": TURNSTILE_SITE_KEY,
         "base_site_url": base_site_url,
         "canonical_url": canonical_url,
         "default_robots": default_robots,
@@ -425,6 +462,116 @@ def fetch_submissions(status: str | None = None, limit: int | None = None):
         return []
 
 
+def fetch_user_roles_for_admin():
+    if not supabase:
+        return []
+    try:
+        response = (
+            supabase.table("user_roles")
+            .select("user_id,role,username,created_at")
+            .order("created_at", desc=False)
+            .execute()
+        )
+    except Exception:
+        try:
+            response = (
+                supabase.table("user_roles").select("user_id,role,username").execute()
+            )
+        except Exception as exc:
+            try:
+                response = supabase.table("user_roles").select("user_id,role").execute()
+            except Exception:
+                app.logger.error("Supabase fetch_user_roles_for_admin failed: %s", exc)
+                return []
+
+    rows = response.data or []
+    for row in rows:
+        row.setdefault("created_at", "")
+        row.setdefault("username", "")
+    return rows
+
+
+def fetch_user_admin_rows():
+    rows = fetch_user_roles_for_admin()
+    if not rows or not supabase:
+        return rows
+
+    submitted_counts: dict[str, int] = {}
+    reviewed_counts: dict[str, int] = {}
+    approved_counts: dict[str, int] = {}
+    rejected_counts: dict[str, int] = {}
+
+    try:
+        submissions = (
+            supabase.table("resource_submissions")
+            .select("submitted_by,reviewed_by,status")
+            .limit(5000)
+            .execute()
+        )
+        for item in submissions.data or []:
+            submitted_by = item.get("submitted_by")
+            reviewed_by = item.get("reviewed_by")
+            status = (item.get("status") or "").lower()
+
+            if submitted_by:
+                submitted_counts[submitted_by] = (
+                    submitted_counts.get(submitted_by, 0) + 1
+                )
+
+            if reviewed_by:
+                reviewed_counts[reviewed_by] = reviewed_counts.get(reviewed_by, 0) + 1
+                if status == "approved":
+                    approved_counts[reviewed_by] = (
+                        approved_counts.get(reviewed_by, 0) + 1
+                    )
+                if status == "rejected":
+                    rejected_counts[reviewed_by] = (
+                        rejected_counts.get(reviewed_by, 0) + 1
+                    )
+    except Exception as exc:
+        app.logger.error("Supabase fetch_user_admin_rows failed: %s", exc)
+
+    enriched = []
+    for row in rows:
+        user_id = row.get("user_id") or ""
+        item = dict(row)
+        item["submitted_count"] = submitted_counts.get(user_id, 0)
+        item["reviewed_count"] = reviewed_counts.get(user_id, 0)
+        item["approved_count"] = approved_counts.get(user_id, 0)
+        item["rejected_count"] = rejected_counts.get(user_id, 0)
+        enriched.append(item)
+    return enriched
+
+
+def fetch_review_activity(limit: int = 150):
+    if not supabase:
+        return []
+
+    try:
+        response = (
+            supabase.table("resource_submissions")
+            .select("id,title,status,review_note,reviewed_at,reviewed_by,submitted_by")
+            .neq("status", "pending")
+            .order("reviewed_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+    except Exception as exc:
+        app.logger.error("Supabase fetch_review_activity failed: %s", exc)
+        return []
+
+    activity = response.data or []
+    users_by_id = {
+        (row.get("user_id") or ""): row for row in fetch_user_roles_for_admin()
+    }
+    for item in activity:
+        reviewer_id = item.get("reviewed_by")
+        reviewer = users_by_id.get(reviewer_id or "", {}) if reviewer_id else {}
+        item["reviewer_role"] = reviewer.get("role") if reviewer_id else None
+        item["reviewer_username"] = reviewer.get("username") if reviewer_id else None
+    return activity
+
+
 def get_submission_by_id(submission_id: int):
     if not supabase:
         return None
@@ -593,6 +740,45 @@ def fetch_resource_by_id(resource_id: int):
     return resource
 
 
+def fetch_resource_admin_record(resource_id: int):
+    if not supabase:
+        return None
+
+    select_with_open_count = (
+        "id,title,type,subject,semester,file_url,tags,created_at,open_count"
+    )
+    select_without_open_count = (
+        "id,title,type,subject,semester,file_url,tags,created_at"
+    )
+
+    try:
+        response = (
+            supabase.table("resources")
+            .select(select_with_open_count)
+            .eq("id", resource_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception:
+        try:
+            response = (
+                supabase.table("resources")
+                .select(select_without_open_count)
+                .eq("id", resource_id)
+                .limit(1)
+                .execute()
+            )
+        except Exception:
+            return None
+
+    if response.data:
+        resource = dict(response.data[0])
+        resource.setdefault("open_count", 0)
+        return resource
+
+    return None
+
+
 def fetch_resource_open_target(resource_id: int):
     if not supabase:
         return None
@@ -698,6 +884,44 @@ def require_auth_client_or_redirect(endpoint: str):
         return False
     flash("Supabase Auth is not configured. Check SUPABASE_ANON_KEY.", "error")
     return redirect(url_for(endpoint))
+
+
+def get_turnstile_token_from_form():
+    return (request.form.get("cf-turnstile-response") or "").strip()
+
+
+def resolve_username_for_oauth(auth_user):
+    metadata = getattr(auth_user, "user_metadata", {}) or {}
+    email = getattr(auth_user, "email", "") or ""
+
+    candidates = [
+        metadata.get("username"),
+        metadata.get("preferred_username"),
+        metadata.get("name"),
+        email.split("@", 1)[0] if "@" in email else None,
+    ]
+
+    allowed = set(string.ascii_lowercase + string.digits + "._-")
+    for raw in candidates:
+        if not raw:
+            continue
+
+        lowered = str(raw).strip().lower().replace(" ", "-")
+        cleaned = "".join(ch for ch in lowered if ch in allowed)
+        try:
+            normalized = normalize_username(cleaned)
+            if normalized:
+                return normalized
+        except ValueError:
+            continue
+
+    return None
+
+
+def get_auth_callback_url():
+    if SITE_URL:
+        return f"{SITE_URL}/auth/callback"
+    return url_for("auth_callback", _external=True)
 
 
 @app.route("/")
@@ -853,7 +1077,7 @@ def public_upload():
 @app.route("/auth/login", methods=["GET", "POST"])
 def auth_login():
     if current_user.is_authenticated:
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_upload"))
 
     auth_redirect = require_auth_client_or_redirect("auth_login")
     if auth_redirect:
@@ -866,6 +1090,8 @@ def auth_login():
         mode = (request.form.get("mode") or "login").strip().lower()
         email = (request.form.get("email") or "").strip()
         password = request.form.get("password") or ""
+        username_input = (request.form.get("username") or "").strip()
+        captcha_token = get_turnstile_token_from_form()
 
         if not email or not password:
             error = "Email and password are required."
@@ -875,13 +1101,38 @@ def auth_login():
 
         try:
             if mode == "register":
+                try:
+                    username = normalize_username(username_input)
+                except ValueError as exc:
+                    error = str(exc)
+                    return render_template(
+                        "admin/login.html",
+                        title=f"{APP_NAME} Auth | Login",
+                        error=error,
+                    )
+
+                if not username:
+                    error = "Username is required for registration."
+                    return render_template(
+                        "admin/login.html",
+                        title=f"{APP_NAME} Auth | Login",
+                        error=error,
+                    )
+
                 sign_up_response = supabase_auth.auth.sign_up(
-                    {"email": email, "password": password}
+                    {
+                        "email": email,
+                        "password": password,
+                        "options": {
+                            "data": {"username": username},
+                            "captcha_token": captcha_token,
+                        },
+                    }
                 )
                 sign_up_user = getattr(sign_up_response, "user", None)
                 sign_up_user_id = getattr(sign_up_user, "id", None)
                 if sign_up_user_id:
-                    ensure_user_role(sign_up_user_id, "student")
+                    ensure_user_role(sign_up_user_id, "student", username=username)
                 flash(
                     "Registration successful. Verify email if required, then log in.",
                     "success",
@@ -889,7 +1140,11 @@ def auth_login():
                 return redirect(url_for("auth_login"))
 
             response = supabase_auth.auth.sign_in_with_password(
-                {"email": email, "password": password}
+                {
+                    "email": email,
+                    "password": password,
+                    "options": {"captcha_token": captcha_token},
+                }
             )
             auth_user = getattr(response, "user", None)
             if not auth_user or not getattr(auth_user, "id", None):
@@ -900,7 +1155,10 @@ def auth_login():
 
             role = get_user_role(auth_user.id)
             if not role:
-                if ensure_user_role(auth_user.id, "student"):
+                username_for_role = resolve_username_for_oauth(auth_user)
+                if ensure_user_role(
+                    auth_user.id, "student", username=username_for_role
+                ):
                     role = "student"
                 else:
                     error = "Role not assigned for this account. Contact admin."
@@ -911,7 +1169,7 @@ def auth_login():
                     )
 
             login_user(AppUser(auth_user.id, role))
-            return redirect(url_for("admin"))
+            return redirect(url_for("admin_upload"))
         except Exception as exc:
             error = f"Authentication failed: {exc}"
 
@@ -933,9 +1191,84 @@ def admin_logout():
     return redirect(url_for("auth_login"))
 
 
+@app.route("/auth/google")
+def auth_google_start():
+    auth_redirect = require_auth_client_or_redirect("auth_login")
+    if auth_redirect:
+        return auth_redirect
+
+    try:
+        response = supabase_auth.auth.sign_in_with_oauth(
+            {
+                "provider": "google",
+                "options": {
+                    "redirect_to": get_auth_callback_url(),
+                },
+            }
+        )
+        oauth_url = getattr(response, "url", None) or (
+            response.get("url") if isinstance(response, dict) else None
+        )
+        if not oauth_url:
+            raise ValueError("Missing OAuth URL from provider response.")
+        return redirect(oauth_url)
+    except Exception as exc:
+        flash(f"Google OAuth start failed: {exc}", "error")
+        return redirect(url_for("auth_login"))
+
+
+@app.route("/auth/callback")
+def auth_callback():
+    auth_redirect = require_auth_client_or_redirect("auth_login")
+    if auth_redirect:
+        return auth_redirect
+
+    auth_code = (request.args.get("code") or "").strip()
+    if not auth_code:
+        flash("OAuth callback failed: missing authorization code.", "error")
+        return redirect(url_for("auth_login"))
+
+    try:
+        response = supabase_auth.auth.exchange_code_for_session(
+            {"auth_code": auth_code}
+        )
+        auth_user = getattr(response, "user", None)
+        if not auth_user:
+            session_obj = getattr(response, "session", None)
+            auth_user = getattr(session_obj, "user", None) if session_obj else None
+
+        user_id = getattr(auth_user, "id", None)
+        if not user_id:
+            raise ValueError("Missing user identity in OAuth callback response.")
+
+        role = get_user_role(user_id)
+        username = resolve_username_for_oauth(auth_user)
+        if not role:
+            if ensure_user_role(user_id, "student", username=username):
+                role = "student"
+            else:
+                raise ValueError("Role not assigned for this account.")
+        elif username:
+            ensure_user_role(user_id, role, username=username)
+
+        login_user(AppUser(user_id, role))
+        return redirect(url_for("admin_upload"))
+    except Exception as exc:
+        flash(f"Google OAuth callback failed: {exc}", "error")
+        return redirect(url_for("auth_login"))
+
+
 @app.route("/admin", methods=["GET", "POST"])
 @login_required
 def admin():
+    if require_role_or_redirect(*MODERATOR_ROLES):
+        return redirect(url_for("hello"))
+    return redirect(url_for("admin_upload"))
+
+
+@app.route("/admin/upload", methods=["GET", "POST"])
+@login_required
+def admin_upload():
     if require_role_or_redirect(*MODERATOR_ROLES):
         return redirect(url_for("hello"))
 
@@ -943,16 +1276,16 @@ def admin():
         validate_csrf_or_abort()
 
         if require_supabase_or_redirect():
-            return redirect(url_for("admin"))
+            return redirect(url_for("admin_upload"))
 
         try:
             data = parse_resource_form(request.form, request.files)
         except ValueError as exc:
             flash(str(exc), "error")
-            return redirect(url_for("admin"))
+            return redirect(url_for("admin_upload"))
 
         if data["has_upload"] and require_blob_storage_or_redirect():
-            return redirect(url_for("admin"))
+            return redirect(url_for("admin_upload"))
 
         try:
             final_file_url = (
@@ -964,7 +1297,7 @@ def admin():
             )
         except Exception as exc:
             flash(f"Upload failed: {exc}", "error")
-            return redirect(url_for("admin"))
+            return redirect(url_for("admin_upload"))
 
         payload = {
             "title": data["title"],
@@ -979,25 +1312,152 @@ def admin():
             supabase.table("resources").insert(payload).execute()
         except Exception as exc:
             flash(f"Database insert failed: {exc}", "error")
-            return redirect(url_for("admin"))
+            return redirect(url_for("admin_upload"))
 
         flash("Resource saved successfully.", "success")
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_upload"))
 
     resources = fetch_resources_for_admin()
     resolved_resources = with_resolved_file_urls(resources)
-    pending_submissions = fetch_submissions("pending")
-    reviewed_submissions = fetch_submissions(None, limit=10)
     stats = build_stats(resources)
     return render_template(
-        "admin/dashboard.html",
-        title=f"{APP_NAME} Admin | Dashboard",
+        "admin/upload.html",
+        title=f"{APP_NAME} Admin | Upload",
         recent_resources=resolved_resources[:6],
-        resources=resolved_resources,
-        pending_submissions=pending_submissions,
-        reviewed_submissions=reviewed_submissions[:10],
         stats=stats,
     )
+
+
+@app.route("/admin/moderation")
+@login_required
+def admin_moderation():
+    if require_role_or_redirect(*MODERATOR_ROLES):
+        return redirect(url_for("hello"))
+
+    pending_submissions = fetch_submissions("pending")
+    reviewed_submissions = fetch_submissions(None, limit=50)
+    return render_template(
+        "admin/moderation.html",
+        title=f"{APP_NAME} Admin | Moderation",
+        pending_submissions=pending_submissions,
+        reviewed_submissions=reviewed_submissions,
+    )
+
+
+@app.route("/admin/resources")
+@login_required
+def admin_resources():
+    if require_role_or_redirect(*MODERATOR_ROLES):
+        return redirect(url_for("hello"))
+
+    resources = with_resolved_file_urls(fetch_resources_for_admin())
+    stats = build_stats(resources)
+    return render_template(
+        "admin/resources.html",
+        title=f"{APP_NAME} Admin | Resources",
+        resources=resources,
+        stats=stats,
+    )
+
+
+@app.route("/admin/users")
+@login_required
+def admin_users():
+    if require_role_or_redirect("admin"):
+        return redirect(url_for("hello"))
+
+    users = fetch_user_admin_rows()
+    return render_template(
+        "admin/users.html",
+        title=f"{APP_NAME} Admin | Users",
+        users=users,
+    )
+
+
+@app.route("/admin/users/<user_id>/delete", methods=["POST"])
+@login_required
+def admin_delete_user(user_id: str):
+    validate_csrf_or_abort()
+
+    if require_role_or_redirect("admin"):
+        return redirect(url_for("hello"))
+
+    if require_supabase_or_redirect():
+        return redirect(url_for("admin_users"))
+
+    if user_id == current_user.id:
+        flash("You cannot delete your own admin access.", "error")
+        return redirect(url_for("admin_users"))
+
+    try:
+        supabase.table("user_roles").delete().eq("user_id", user_id).execute()
+    except Exception as exc:
+        flash(f"Delete user failed: {exc}", "error")
+        return redirect(url_for("admin_users"))
+
+    flash("User access removed successfully.", "success")
+    return redirect(url_for("admin_users"))
+
+
+@app.route("/admin/main-admin")
+@login_required
+def admin_main_admin():
+    if require_role_or_redirect("admin"):
+        return redirect(url_for("hello"))
+
+    users = fetch_user_admin_rows()
+    review_activity = fetch_review_activity(limit=200)
+    return render_template(
+        "admin/main_admin.html",
+        title=f"{APP_NAME} Admin | Roles and Logs",
+        users=users,
+        review_activity=review_activity,
+        assignable_roles=ASSIGNABLE_ROLES,
+        current_roles=ASSIGNABLE_ROLES,
+    )
+
+
+@app.route("/admin/users/<user_id>/role", methods=["POST"])
+@login_required
+def admin_update_user_role(user_id: str):
+    validate_csrf_or_abort()
+
+    if require_role_or_redirect("admin"):
+        return redirect(url_for("hello"))
+    if require_supabase_or_redirect():
+        return redirect(url_for("admin_main_admin"))
+
+    if user_id == current_user.id:
+        flash("You cannot change your own role from this panel.", "error")
+        return redirect(url_for("admin_main_admin"))
+
+    new_role = (request.form.get("role") or "").strip().lower()
+    if new_role not in ASSIGNABLE_ROLES:
+        flash("Invalid role selected.", "error")
+        return redirect(url_for("admin_main_admin"))
+
+    try:
+        existing = (
+            supabase.table("user_roles")
+            .select("user_id")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            supabase.table("user_roles").update({"role": new_role}).eq(
+                "user_id", user_id
+            ).execute()
+        else:
+            supabase.table("user_roles").insert(
+                {"user_id": user_id, "role": new_role}
+            ).execute()
+    except Exception as exc:
+        flash(f"Role update failed: {exc}", "error")
+        return redirect(url_for("admin_main_admin"))
+
+    flash("Role updated successfully.", "success")
+    return redirect(url_for("admin_main_admin"))
 
 
 @app.route("/admin/submissions/<int:submission_id>/approve", methods=["POST"])
@@ -1009,12 +1469,12 @@ def approve_submission(submission_id: int):
         return redirect(url_for("hello"))
 
     if require_supabase_or_redirect():
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_moderation"))
 
     submission = get_submission_by_id(submission_id)
     if not submission or submission.get("status") != "pending":
         flash("Submission not found or already reviewed.", "error")
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_moderation"))
 
     if has_duplicate_resource(
         submission.get("title") or "",
@@ -1031,7 +1491,7 @@ def approve_submission(submission_id: int):
             },
         )
         flash("Duplicate detected. Submission rejected.", "error")
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_moderation"))
 
     payload = {
         "title": submission.get("title"),
@@ -1049,7 +1509,7 @@ def approve_submission(submission_id: int):
         supabase.table("resources").insert(payload).execute()
     except Exception as exc:
         flash(f"Approval failed: {exc}", "error")
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_moderation"))
 
     update_submission(
         submission_id,
@@ -1062,7 +1522,7 @@ def approve_submission(submission_id: int):
     )
 
     flash("Submission approved and published.", "success")
-    return redirect(url_for("admin"))
+    return redirect(url_for("admin_moderation"))
 
 
 @app.route("/admin/submissions/<int:submission_id>/reject", methods=["POST"])
@@ -1076,7 +1536,7 @@ def reject_submission(submission_id: int):
     submission = get_submission_by_id(submission_id)
     if not submission or submission.get("status") != "pending":
         flash("Submission not found or already reviewed.", "error")
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_moderation"))
 
     review_note = (request.form.get("review_note") or "").strip()
 
@@ -1092,7 +1552,7 @@ def reject_submission(submission_id: int):
 
     delete_blob_if_needed(submission.get("file_url") or "")
     flash("Submission rejected.", "success")
-    return redirect(url_for("admin"))
+    return redirect(url_for("admin_moderation"))
 
 
 @app.route("/admin/resources/<int:resource_id>/delete", methods=["POST"])
@@ -1104,7 +1564,7 @@ def delete_resource(resource_id: int):
         return redirect(url_for("hello"))
 
     if require_supabase_or_redirect():
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_resources"))
 
     file_url = None
     try:
@@ -1124,12 +1584,119 @@ def delete_resource(resource_id: int):
         supabase.table("resources").delete().eq("id", resource_id).execute()
     except Exception as exc:
         flash(f"Delete failed: {exc}", "error")
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_resources"))
 
     delete_blob_if_needed(file_url or "")
 
     flash("Resource deleted successfully.", "success")
-    return redirect(url_for("admin"))
+    return redirect(url_for("admin_resources"))
+
+
+@app.route("/admin/resources/<int:resource_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_resource(resource_id: int):
+    if require_role_or_redirect("admin"):
+        return redirect(url_for("hello"))
+
+    if require_supabase_or_redirect():
+        return redirect(url_for("admin_resources"))
+
+    resource = fetch_resource_admin_record(resource_id)
+    if not resource:
+        flash("Resource not found.", "error")
+        return redirect(url_for("admin_resources"))
+
+    if request.method == "POST":
+        validate_csrf_or_abort()
+
+        title = (request.form.get("title") or "").strip()
+        subject = (request.form.get("subject") or "").strip()
+        resource_type = (request.form.get("type") or "").strip()
+        semester_raw = (request.form.get("semester") or "").strip()
+        tags_raw = (request.form.get("tags") or "").strip()
+        file_url_input = (request.form.get("file_url") or "").strip()
+        upload_file = request.files.get("resource_file")
+        has_upload = bool(upload_file and upload_file.filename)
+
+        if not title or not subject or not resource_type or not semester_raw:
+            flash("Title, subject, type, and semester are required.", "error")
+            return redirect(url_for("edit_resource", resource_id=resource_id))
+
+        if len(title) > 180 or len(subject) > 100:
+            flash("Title or subject is too long.", "error")
+            return redirect(url_for("edit_resource", resource_id=resource_id))
+
+        if resource_type not in RESOURCE_TYPES:
+            flash("Type must be one of: Note, Syllabus, or Paper.", "error")
+            return redirect(url_for("edit_resource", resource_id=resource_id))
+
+        try:
+            semester = int(semester_raw)
+        except ValueError:
+            flash("Semester must be a number.", "error")
+            return redirect(url_for("edit_resource", resource_id=resource_id))
+
+        if semester < 1 or semester > 12:
+            flash("Semester must be between 1 and 12.", "error")
+            return redirect(url_for("edit_resource", resource_id=resource_id))
+
+        if has_upload and file_url_input:
+            flash("Choose either a new file upload or external URL, not both.", "error")
+            return redirect(url_for("edit_resource", resource_id=resource_id))
+
+        if file_url_input and not file_url_input.lower().startswith(
+            ("http://", "https://")
+        ):
+            flash("External file URL must start with http:// or https://.", "error")
+            return redirect(url_for("edit_resource", resource_id=resource_id))
+
+        final_file_url = resource.get("file_url") or ""
+        old_file_url = final_file_url
+
+        if has_upload:
+            if require_blob_storage_or_redirect():
+                return redirect(url_for("edit_resource", resource_id=resource_id))
+            try:
+                final_file_url = upload_pdf_and_get_public_url(
+                    upload_file, semester, resource_type
+                )
+            except Exception as exc:
+                flash(f"Upload failed: {exc}", "error")
+                return redirect(url_for("edit_resource", resource_id=resource_id))
+        elif file_url_input:
+            final_file_url = file_url_input
+
+        payload = {
+            "title": title,
+            "type": resource_type,
+            "subject": subject,
+            "semester": semester,
+            "tags": parse_tags(tags_raw),
+            "file_url": final_file_url,
+        }
+
+        try:
+            supabase.table("resources").update(payload).eq("id", resource_id).execute()
+        except Exception as exc:
+            flash(f"Update failed: {exc}", "error")
+            return redirect(url_for("edit_resource", resource_id=resource_id))
+
+        if has_upload and final_file_url != old_file_url:
+            delete_blob_if_needed(old_file_url)
+
+        flash("Resource updated successfully.", "success")
+        return redirect(url_for("admin_resources"))
+
+    resource_view = dict(resource)
+    resource_view["file_url"] = build_signed_blob_url(
+        resource_view.get("file_url") or ""
+    )
+    return render_template(
+        "admin/edit_resource.html",
+        title=f"Edit Resource | {APP_NAME} Admin",
+        resource=resource,
+        preview_resource=resource_view,
+    )
 
 
 @app.route("/sitemap.xml")
@@ -1196,7 +1763,7 @@ def bad_request(_err):
 def file_too_large(_err):
     flash("Upload too large. Max allowed size is 50MB.", "error")
     if current_user.is_authenticated:
-        return redirect(url_for("admin")), 413
+        return redirect(url_for("admin_upload")), 413
     if request.path == url_for("public_upload"):
         return redirect(url_for("public_upload")), 413
     return redirect(url_for("auth_login")), 413

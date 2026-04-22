@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or "BITVault Admin" }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="admin-dashboard-body">
+    <div class="admin-dashboard-shell">
+        <aside class="admin-sidebar">
+            <div>
+                <a class="admin-sidebar-brand" href="{{ url_for('hello') }}">
+                    <img src="{{ url_for('static', filename='logo.svg') }}" alt="Site logo" class="site-logo">
+                </a>
+                <p class="admin-sidebar-title">Admin Console</p>
+                <p class="admin-sidebar-subtitle">Study Material Hub</p>
+
+                <nav class="admin-sidebar-nav" aria-label="Sidebar">
+                    <a class="{% if request.endpoint == 'admin_upload' %}active{% endif %}" href="{{ url_for('admin_upload') }}">Upload Resource</a>
+                    <a class="{% if request.endpoint == 'admin_moderation' %}active{% endif %}" href="{{ url_for('admin_moderation') }}">Moderation Queue</a>
+                    <a class="{% if request.endpoint == 'admin_resources' %}active{% endif %}" href="{{ url_for('admin_resources') }}">All Resources</a>
+                    {% if current_role() == 'admin' %}
+                        <a class="{% if request.endpoint == 'admin_users' %}active{% endif %}" href="{{ url_for('admin_users') }}">Users</a>
+                    {% endif %}
+                    {% if current_role() == 'admin' %}
+                        <a class="{% if request.endpoint == 'admin_main_admin' %}active{% endif %}" href="{{ url_for('admin_main_admin') }}">Roles and Logs</a>
+                    {% endif %}
+                    <a href="{{ url_for('hello') }}">Preview Public Page</a>
+                    <form action="{{ url_for('admin_logout') }}" method="post" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="as-link">Logout</button>
+                    </form>
+                </nav>
+            </div>
+
+            <div class="admin-sidebar-bottom">
+                <a href="{{ url_for('hello') }}">View Public Library</a>
+                <div class="admin-status-box">
+                    <strong>System Status</strong>
+                    <span>Operational</span>
+                </div>
+            </div>
+        </aside>
+
+        <div class="admin-main-wrap">
+            <header class="admin-topbar">
+                <a class="admin-top-logo" href="{{ url_for('hello') }}">
+                    <img src="{{ url_for('static', filename='logo.svg') }}" alt="Site logo" class="site-logo">
+                </a>
+                <nav class="admin-top-links" aria-label="Top navigation">
+                    <a class="{% if request.endpoint == 'admin_upload' %}active{% endif %}" href="{{ url_for('admin_upload') }}">Upload</a>
+                    <a class="{% if request.endpoint == 'admin_moderation' %}active{% endif %}" href="{{ url_for('admin_moderation') }}">Moderation</a>
+                    <a class="{% if request.endpoint == 'admin_resources' %}active{% endif %}" href="{{ url_for('admin_resources') }}">Resources</a>
+                    {% if current_role() == 'admin' %}
+                        <a class="{% if request.endpoint == 'admin_users' %}active{% endif %}" href="{{ url_for('admin_users') }}">Users</a>
+                    {% endif %}
+                </nav>
+                <div class="admin-top-actions">
+                    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark mode">
+                        <img src="{{ url_for('static', filename='moon.svg') }}" alt="Theme" class="theme-toggle-icon">
+                    </button>
+                    <form action="{{ url_for('admin_logout') }}" method="post" class="inline-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="admin-upload-btn">Logout</button>
+                    </form>
+                </div>
+            </header>
+
+            <main class="admin-content-grid">
+                <section class="admin-form-column">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            <div class="admin-alert-stack">
+                                {% for category, message in messages %}
+                                    <p class="admin-alert {{ category }}">{{ message }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    {% block content %}{% endblock %}
+                </section>
+
+                <aside class="admin-feed-column">
+                    {% block sidebar %}
+                    <div class="admin-feed-head">
+                        <h2>Admin Panel</h2>
+                        <span>TOOLS</span>
+                    </div>
+                    <div class="admin-feed-list">
+                        <article class="admin-feed-item">
+                            <div class="feed-icon blue">&#128736;</div>
+                            <div>
+                                <h3>Upload</h3>
+                                <p>Publish verified resources for students.</p>
+                            </div>
+                        </article>
+                        <article class="admin-feed-item">
+                            <div class="feed-icon amber">&#128221;</div>
+                            <div>
+                                <h3>Moderation</h3>
+                                <p>Approve or reject incoming submissions.</p>
+                            </div>
+                        </article>
+                        <article class="admin-feed-item">
+                            <div class="feed-icon green">&#128202;</div>
+                            <div>
+                                <h3>Resource Library</h3>
+                                <p>Track, edit, and clean up published content.</p>
+                            </div>
+                        </article>
+                    </div>
+                    {% endblock %}
+                </aside>
+            </main>
+        </div>
+    </div>
+    <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

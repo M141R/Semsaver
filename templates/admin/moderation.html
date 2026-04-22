@@ -1,0 +1,98 @@
+{% extends 'admin/layout.html' %}
+
+{% block content %}
+<h1>Moderation Queue</h1>
+<p>Review pending student submissions and maintain quality.</p>
+
+<section class="resource-admin-table" aria-label="Pending submissions">
+    <div class="resource-admin-head">
+        <h2>Pending Submissions</h2>
+        <span>{{ pending_submissions|length }} PENDING</span>
+    </div>
+    <div class="resource-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Uploader</th>
+                    <th>Type</th>
+                    <th>Sem</th>
+                    <th>Link</th>
+                    <th>Review</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if pending_submissions %}
+                    {% for item in pending_submissions %}
+                        <tr>
+                            <td>{{ item.title or '-' }}</td>
+                            <td>
+                                {{ (item.submitted_by or '-')[:8] }}
+                                <br>
+                                <small>{{ item.submitted_by or '-' }}</small>
+                            </td>
+                            <td>{{ item.type or '-' }}</td>
+                            <td>{{ item.semester or '-' }}</td>
+                            <td><a href="{{ item.file_url }}" target="_blank" rel="noopener">Preview</a></td>
+                            <td>
+                                <div class="moderation-actions">
+                                    <form action="{{ url_for('approve_submission', submission_id=item.id) }}" method="post" class="inline-form">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="approve-btn" type="submit">Approve</button>
+                                    </form>
+                                    <form action="{{ url_for('reject_submission', submission_id=item.id) }}" method="post" class="inline-form">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="text" name="review_note" placeholder="Reason (optional)">
+                                        <button class="delete-btn" type="submit">Reject</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6">No pending submissions. Your moderation queue is clear.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="resource-admin-table" aria-label="Reviewed submissions">
+    <div class="resource-admin-head">
+        <h2>Recently Reviewed</h2>
+        <span>{{ reviewed_submissions|length }} ITEMS</span>
+    </div>
+    <div class="resource-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Reviewer</th>
+                    <th>Reviewer Note</th>
+                    <th>Reviewed At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if reviewed_submissions %}
+                    {% for item in reviewed_submissions %}
+                        <tr>
+                            <td>{{ item.title or '-' }}</td>
+                            <td>{{ item.status or '-' }}</td>
+                            <td>{{ item.reviewed_by or '-' }}</td>
+                            <td>{{ item.review_note or '-' }}</td>
+                            <td>{{ (item.reviewed_at or '')[:16] or '-' }}</td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5">No reviewed submissions yet.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

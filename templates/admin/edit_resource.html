@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or "Edit Resource" }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Manrope:wght@400;500;700;800&display=swap"
+          rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+</head>
+<body class="admin-dashboard-body">
+    <div class="admin-edit-wrap">
+        <header class="admin-edit-header">
+            <a class="admin-logo-link" href="{{ url_for('admin') }}">
+                <img src="{{ url_for('static', filename='logo.svg') }}" alt="Site logo" class="site-logo">
+            </a>
+            <div class="admin-edit-actions">
+                <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark mode">
+                    <img src="{{ url_for('static', filename='moon.svg') }}" alt="Theme" class="theme-toggle-icon">
+                </button>
+                <a class="secondary-btn" href="{{ url_for('admin_resources') }}">Back to Resources</a>
+            </div>
+        </header>
+
+        <main class="admin-edit-main">
+            <section class="admin-upload-form admin-edit-form" aria-label="Edit resource form">
+                <div class="form-section-head">
+                    <h2>Edit Resource</h2>
+                    <p>Update details or replace the file for this resource.</p>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="admin-alert-stack">
+                            {% for category, message in messages %}
+                                <p class="admin-alert {{ category }}">{{ message }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <form method="post" enctype="multipart/form-data" class="admin-edit-form-grid">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="admin-field-grid">
+                        <label>
+                            <span>TITLE</span>
+                            <input type="text" name="title" value="{{ resource.title or '' }}" required>
+                        </label>
+                        <label>
+                            <span>SUBJECT</span>
+                            <input type="text" name="subject" value="{{ resource.subject or '' }}" required>
+                        </label>
+                        <label>
+                            <span>TYPE</span>
+                            <select name="type" required>
+                                {% for t in ['Note', 'Syllabus', 'Paper'] %}
+                                    <option value="{{ t }}" {% if resource.type == t %}selected{% endif %}>{{ t }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label>
+                            <span>SEMESTER</span>
+                            <select name="semester" required>
+                                {% for sem in range(1, 9) %}
+                                    <option value="{{ sem }}" {% if resource.semester == sem %}selected{% endif %}>{{ sem }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                    </div>
+
+                    <label>
+                        <span>TAGS</span>
+                        <input type="text" name="tags" value="{{ (resource.tags or [])|join(', ') }}">
+                    </label>
+
+                    <label>
+                        <span>NEW EXTERNAL FILE URL (OPTIONAL)</span>
+                        <input type="url" name="file_url" placeholder="Leave blank to keep existing file">
+                    </label>
+
+                    <div class="admin-dropzone" aria-label="Upload replacement PDF">
+                        <div class="admin-drop-icon">&#9729;</div>
+                        <p>Replace with a new PDF (optional)</p>
+                        <small>If you upload a new file, it replaces the current file URL.</small>
+                        <label class="dropzone-file-label">
+                            <input class="dropzone-file-input" type="file" name="resource_file" accept="application/pdf,.pdf">
+                            <span>SELECT REPLACEMENT FILE</span>
+                        </label>
+                    </div>
+
+                    <div class="admin-form-actions">
+                        <button type="submit" class="admin-submit-btn">Save Changes</button>
+                    </div>
+                </form>
+            </section>
+
+            <aside class="resource-admin-table admin-edit-preview" aria-label="Current resource preview">
+                <div class="resource-admin-head">
+                    <h2>Current Resource</h2>
+                    <span>ID {{ resource.id }}</span>
+                </div>
+                <div class="admin-edit-preview-body">
+                    <p><strong>Title:</strong> {{ resource.title or '-' }}</p>
+                    <p><strong>Type:</strong> {{ resource.type or '-' }}</p>
+                    <p><strong>Subject:</strong> {{ resource.subject or '-' }}</p>
+                    <p><strong>Semester:</strong> {{ resource.semester or '-' }}</p>
+                    <p><strong>Opens:</strong> {{ resource.open_count or 0 }}</p>
+                    <p><strong>Tags:</strong> {{ (resource.tags or [])|join(', ') or '-' }}</p>
+                    <a class="download-btn" href="{{ preview_resource.file_url }}" target="_blank" rel="noopener">Open Current File</a>
+                </div>
+            </aside>
+        </main>
+    </div>
+</body>
+</html>

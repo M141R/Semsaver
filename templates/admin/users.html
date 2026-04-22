@@ -1,0 +1,60 @@
+{% extends 'admin/layout.html' %}
+
+{% block content %}
+<h1>Users</h1>
+<p>View all users with role and basic moderation activity. Admins can remove access.</p>
+
+<section class="resource-admin-table" aria-label="Users table">
+    <div class="resource-admin-head">
+        <h2>All Users</h2>
+        <span>{{ users|length }} TOTAL</span>
+    </div>
+    <div class="resource-table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                    <th>Submitted</th>
+                    <th>Reviewed</th>
+                    <th>Approved</th>
+                    <th>Rejected</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if users %}
+                    {% for item in users %}
+                        <tr>
+                            <td>
+                                {{ (item.user_id or '-')[:8] }}
+                                <br>
+                                <small>{{ item.user_id or '-' }}</small>
+                            </td>
+                            <td>{{ item.username or '-' }}</td>
+                            <td>{{ item.role or '-' }}</td>
+                            <td>{{ (item.created_at or '')[:16] or '-' }}</td>
+                            <td>{{ item.submitted_count or 0 }}</td>
+                            <td>{{ item.reviewed_count or 0 }}</td>
+                            <td>{{ item.approved_count or 0 }}</td>
+                            <td>{{ item.rejected_count or 0 }}</td>
+                            <td>
+                                <form action="{{ url_for('admin_delete_user', user_id=item.user_id) }}" method="post">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="delete-btn" type="submit">Delete Access</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9">No users found.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}
