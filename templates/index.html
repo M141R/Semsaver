@@ -1,12 +1,5 @@
 {% extends "base.html" %}
-{% set active_page = "repository" %}
 {% block head_meta %}
-        <meta name="description" content="Browse BITVault study resources including notes, syllabi, and papers. Filter by subject, type, and semester.">
-    <meta property="og:title" content="BITVault Study Material Repository">
-    <meta property="og:description" content="Browse curated notes, syllabi, and papers. Search by subject, type, and semester.">
-        <meta property="og:url" content="{{ canonical_url }}">
-    <meta property="og:type" content="website">
-        <meta name="twitter:url" content="{{ canonical_url }}">
         <script type="application/ld+json">
         {
             "@context": "https://schema.org",
@@ -33,17 +26,17 @@
 {% block content %}
     <section class="hero">
         <p class="eyebrow">THE DIGITAL CURATOR</p>
-        <h1>
-            Navigate the collective
-            <br>
-            knowledge of <em>BITVault.</em>
-        </h1>
+        <h1>{{ listing_heading or "Navigate the collective knowledge of BitVault" }}</h1>
         <p class="hero-copy">
             Browse notes, syllabi, and papers shared by your batchmates. Filter by
             subject, type, and semester, then open files instantly. Want to contribute?
             Submit a resource for moderation in one minute.
         </p>
         <a href="{{ url_for('public_upload') }}" class="download-btn">Submit Resource</a>
+    </section>
+
+    <section aria-label="Repository listings">
+        <h2 class="sr-only">Notes, syllabus, and past paper listings</h2>
     </section>
 
     <section class="search-panel sticky-filters" aria-label="Search and filters">
@@ -121,8 +114,8 @@
                             data-resource-source="index_card"
                             data-resource-type="{{ item.type or '' }}"
                             data-resource-subject="{{ item.subject or '' }}"
-                        >Open Resource</a>
-                        <a href="{{ url_for('resource_detail', resource_id=item.id) }}" class="secondary-btn">View Details</a>
+                        >Download {{ item.title or (item.subject ~ ' Resource') }} PDF</a>
+                        <a href="{{ url_for('resource_detail', resource_id=item.id) }}" class="secondary-btn">View details for {{ item.title or (item.subject ~ ' resource') }}</a>
                         <button class="secondary-btn share-btn" type="button" data-share-url="{{ url_for('resource_detail', resource_id=item.id, _external=True) }}">Copy Link</button>
                     </div>
                 </article>

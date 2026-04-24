@@ -47,7 +47,7 @@
                 data-resource-source="detail_primary"
                 data-resource-type="{{ resource.type or '' }}"
                 data-resource-subject="{{ resource.subject or '' }}"
-            >Open Full PDF</a>
+            >Download {{ resource.title or 'resource' }} PDF</a>
             <button class="secondary-btn share-btn" type="button" data-share-url="{{ share_url }}">Copy Share Link</button>
             <a class="secondary-btn" href="https://twitter.com/intent/tweet?url={{ share_url|urlencode }}&text={{ (resource.title or 'Check this resource')|urlencode }}" target="_blank" rel="noopener">Share on X</a>
         </div>
@@ -102,7 +102,7 @@
                         <h3>{{ item.title or 'Untitled Resource' }}</h3>
                         <p class="resource-subject">{{ item.subject or '-' }} | Sem {{ item.semester or '-' }}</p>
                         <div class="resource-actions">
-                            <a href="{{ url_for('resource_detail', resource_id=item.id) }}" class="secondary-btn">View Details</a>
+                            <a href="{{ url_for('resource_detail', resource_id=item.id) }}" class="secondary-btn">View details for {{ item.title or 'related resource' }}</a>
                             <a
                                 href="{{ url_for('open_resource', resource_id=item.id, src='detail_related') }}"
                                 class="download-btn"
@@ -113,7 +113,7 @@
                                 data-resource-source="detail_related"
                                 data-resource-type="{{ item.type or '' }}"
                                 data-resource-subject="{{ item.subject or '' }}"
-                            >Open PDF</a>
+                            >Download {{ item.title or 'related resource' }} PDF</a>
                         </div>
                     </article>
                 {% endfor %}

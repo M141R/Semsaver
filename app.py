@@ -5,6 +5,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_from_directory,
     session,
     url_for,
 )
@@ -17,6 +18,7 @@ from flask_login import (
     logout_user,
 )
 import os
+import re
 import secrets
 import string
 from datetime import datetime, timedelta, timezone
@@ -250,10 +252,6 @@ def inject_template_globals():
 
     if request.path.startswith("/admin") or request.path.startswith("/auth"):
         default_robots = "noindex, nofollow"
-    elif request.path == "/upload":
-        default_robots = "noindex, follow"
-    elif request.args:
-        default_robots = "noindex, follow"
 
     return {
         "csrf_token": get_csrf_token,
@@ -261,6 +259,11 @@ def inject_template_globals():
         "current_role": current_role,
         "turnstile_site_key": TURNSTILE_SITE_KEY,
         "base_site_url": base_site_url,
+        "site_name": APP_NAME,
+        "site_name_brand": "BitVault",
+        "page_title": "Free Notes, Syllabus and Papers",
+        "meta_description": "Free notes, syllabus, papers, and study resources for students. Search by subject and semester for quick download.",
+        "og_image": url_for("static", filename="ogimage.png", _external=True),
         "canonical_url": canonical_url,
         "default_robots": default_robots,
     }
@@ -924,13 +927,51 @@ def get_auth_callback_url():
     return url_for("auth_callback", _external=True)
 
 
-@app.route("/")
-def hello():
+def slugify_text(value: str):
+    base = (value or "").strip().lower()
+    base = re.sub(r"[^a-z0-9]+", "-", base)
+    return base.strip("-")
+
+
+def build_subject_slug_map(resources):
+    mapping = {}
+    for item in resources:
+        subject = (item.get("subject") or "").strip()
+        if not subject:
+            continue
+        slug = slugify_text(subject)
+        if slug and slug not in mapping:
+            mapping[slug] = subject
+    return mapping
+
+
+def repository_seo_context(subject: str, resource_type: str):
+    if subject and resource_type:
+        page_title = f"{subject} {resource_type}"
+    elif subject:
+        page_title = f"{subject} Notes, Syllabus and Papers"
+    elif resource_type:
+        page_title = f"{resource_type} Resources"
+    else:
+        page_title = "B.Tech Notes, Syllabus and Papers"
+
+    meta_description = (
+        f"Download free {subject or 'B.Tech'} notes, syllabus, papers, and study resources. "
+        "Filter by subject, type, and semester for fast access."
+    )
+
+    return {
+        "page_title": page_title,
+        "meta_description": meta_description,
+    }
+
+
+def render_repository_page(
+    canonical_url: str, subject: str = "", resource_type: str = ""
+):
     resources = fetch_resources_for_admin()
 
     q = (request.args.get("q") or "").strip()
-    subject = (request.args.get("subject") or "").strip()
-    resource_type = (request.args.get("type") or "").strip()
     semester = (request.args.get("semester") or "").strip()
 
     if resource_type and resource_type not in RESOURCE_TYPES:
@@ -941,6 +982,26 @@ def hello():
 
     subjects = sorted({r.get("subject") for r in resources if r.get("subject")})
     semesters = sorted({str(r.get("semester")) for r in resources if r.get("semester")})
+
+    if subject and resource_type:
+        listing_heading = f"{subject} {resource_type}"
+    elif subject:
+        listing_heading = f"{subject} Notes"
+    elif resource_type:
+        listing_heading = f"{resource_type} Library"
+    else:
+        listing_heading = "Navigate the collective knowledge of BitVault"
+
+    if resource_type == "Note":
+        active_page = "notes"
+    elif resource_type == "Syllabus":
+        active_page = "syllabi"
+    elif resource_type == "Paper":
+        active_page = "papers"
+    else:
+        active_page = "repository"
+
+    seo = repository_seo_context(subject, resource_type)
 
     return render_template(
         "index.html",
@@ -953,8 +1014,69 @@ def hello():
             "type": resource_type,
             "semester": semester,
         },
-        title=f"{APP_NAME} Library | Repository",
+        listing_heading=listing_heading,
+        active_page=active_page,
+        page_title=seo["page_title"],
+        meta_description=seo["meta_description"],
+        canonical_url=canonical_url,
     )
+
+
+@app.route("/")
+def hello():
+    subject = (request.args.get("subject") or "").strip()
+    resource_type = (request.args.get("type") or "").strip()
+    return render_repository_page(
+        canonical_url=request.url,
+        subject=subject,
+        resource_type=resource_type,
+    )
+
+
+@app.route("/subject/<subject_slug>")
+def subject_page(subject_slug: str):
+    resources = fetch_resources_for_admin()
+    subject_map = build_subject_slug_map(resources)
+    subject_name = subject_map.get(subject_slug)
+    if not subject_name:
+        abort(404)
+
+    return render_repository_page(
+        canonical_url=url_for(
+            "subject_page", subject_slug=subject_slug, _external=True
+        ),
+        subject=subject_name,
+    )
+
+
+@app.route("/type/<resource_type_slug>")
+def type_page(resource_type_slug: str):
+    type_map = {
+        "notes": "Note",
+        "syllabus": "Syllabus",
+        "papers": "Paper",
+    }
+    resource_type = type_map.get((resource_type_slug or "").strip().lower())
+    if not resource_type:
+        abort(404)
+
+    return render_repository_page(
+        canonical_url=url_for(
+            "type_page", resource_type_slug=resource_type_slug, _external=True
+        ),
+        resource_type=resource_type,
+    )
+
+
+@app.route("/search")
+def search_page():
+    """SEO-friendly search endpoint that maps to repository filters."""
+    redirect_params = {}
+    for key in ("q", "subject", "type", "semester"):
+        value = (request.args.get(key) or "").strip()
+        if value:
+            redirect_params[key] = value
+    return redirect(url_for("hello", **redirect_params), code=302)
 
 
 @app.route("/resources/<int:resource_id>")
@@ -978,7 +1100,12 @@ def resource_detail(resource_id: int):
 
     return render_template(
         "resource_detail.html",
-        title=f"{resource.get('title') or 'Resource'} | {APP_NAME}",
+        page_title=f"{resource.get('title') or 'Resource'}",
+        meta_description=(
+            f"Download free {resource.get('subject') or 'engineering'} {resource.get('type') or 'study'} resource. "
+            "Get notes, syllabus, papers, and related material in one place."
+        ),
+        canonical_url=share_url,
         resource=resource,
         related_resources=related,
         share_url=share_url,
@@ -1071,7 +1198,13 @@ def public_upload():
         flash("Submission received. Admin will review it shortly.", "success")
         return redirect(url_for("public_upload"))
 
-    return render_template("upload.html", title=f"Submit Resource | {APP_NAME}")
+    return render_template(
+        "upload.html",
+        page_title="Submit Study Resource",
+        meta_description="Submit notes, syllabus, and papers to BitVault for moderation review. Help students with free downloadable study materials.",
+        canonical_url=url_for("public_upload", _external=True),
+        meta_robots="index, follow",
+    )
 
 
 @app.route("/auth/login", methods=["GET", "POST"])
@@ -1701,37 +1834,75 @@ def edit_resource(resource_id: int):
 
 @app.route("/sitemap.xml")
 def sitemap():
-    """Generate dynamic XML sitemap for search engines."""
-    resources = fetch_resources("id,created_at")
+    """Generate dynamic XML sitemap for public pages and listings."""
+    resources = fetch_resources("id,created_at,subject,type")
     site_root = SITE_URL or request.url_root.rstrip("/")
+    today = datetime.now(timezone.utc).date().isoformat()
+
+    entries = [
+        {
+            "loc": f"{site_root}/",
+            "lastmod": today,
+            "changefreq": "weekly",
+            "priority": "1.0",
+        },
+    ]
+
+    subjects = sorted(
+        {(r.get("subject") or "").strip() for r in resources if r.get("subject")}
+    )
+    for subject in subjects:
+        subject_slug = slugify_text(subject)
+        if not subject_slug:
+            continue
+        entries.append(
+            {
+                "loc": f"{site_root}/subject/{subject_slug}",
+                "lastmod": today,
+                "changefreq": "weekly",
+                "priority": "0.8",
+            }
+        )
+
+    type_slug_map = {"Note": "notes", "Syllabus": "syllabus", "Paper": "papers"}
+    for resource_type in sorted(RESOURCE_TYPES):
+        entries.append(
+            {
+                "loc": f"{site_root}/type/{type_slug_map[resource_type]}",
+                "lastmod": today,
+                "changefreq": "weekly",
+                "priority": "0.8",
+            }
+        )
+
+    for resource in resources:
+        resource_id = resource.get("id")
+        if not resource_id:
+            continue
+
+        last_mod = (resource.get("created_at") or "").split("T")[0] or today
+        entries.append(
+            {
+                "loc": f"{site_root}/resources/{resource_id}",
+                "lastmod": last_mod,
+                "changefreq": "monthly",
+                "priority": "0.6",
+            }
+        )
 
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ]
 
-    # Main page
-    lines.append(
-        f"  <url>"
-        f"<loc>{site_root}/</loc>"
-        f"<changefreq>daily</changefreq>"
-        f"<priority>1.0</priority>"
-        f"</url>"
-    )
-
-    # Resource detail pages
-    for resource in resources:
-        resource_id = resource.get("id")
-        if not resource_id:
-            continue
-        last_mod = (resource.get("created_at") or "").split("T")[0]
+    for item in entries:
         lines.append(
-            f"  <url>"
-            f"<loc>{site_root}/resources/{resource_id}</loc>"
-            f"<lastmod>{last_mod}</lastmod>"
-            f"<changefreq>weekly</changefreq>"
-            f"<priority>0.8</priority>"
-            f"</url>"
+            "  <url>"
+            f"<loc>{item['loc']}</loc>"
+            f"<lastmod>{item['lastmod']}</lastmod>"
+            f"<changefreq>{item['changefreq']}</changefreq>"
+            f"<priority>{item['priority']}</priority>"
+            "</url>"
         )
 
     lines.append("</urlset>")
@@ -1740,23 +1911,27 @@ def sitemap():
 
 @app.route("/robots.txt")
 def robots():
-    """Serve robots.txt with dynamic sitemap URL."""
-    domain = SITE_URL or request.url_root.rstrip("/")
-    content = f"""User-agent: *
-Allow: /
-Disallow: /admin/
-Disallow: /auth/
-Disallow: /upload
-Disallow: /resources/*/open
-
-Sitemap: {domain}/sitemap.xml
-"""
-    return content, 200, {"Content-Type": "text/plain"}
+    """Serve static robots.txt from the static directory."""
+    return send_from_directory(app.static_folder, "robots.txt", mimetype="text/plain")
 
 
 @app.errorhandler(400)
 def bad_request(_err):
     return "Bad request.", 400
+
+
+@app.errorhandler(404)
+def not_found(_err):
+    return (
+        render_template(
+            "404.html",
+            page_title="Page Not Found",
+            meta_description="The requested BitVault page was not found. Browse free notes, syllabus, and papers from the homepage.",
+            canonical_url=request.base_url,
+            meta_robots="noindex, follow",
+        ),
+        404,
+    )
 
 
 @app.errorhandler(413)

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% set active_page = "repository" %}
+
+{% block content %}
+<section class="hero not-found-hero" aria-label="Page not found">
+    <p class="eyebrow">404 ERROR</p>
+    <h1>Page not found</h1>
+    <p class="hero-copy">
+        The page you are looking for does not exist or may have moved. Browse the BitVault repository
+        to find notes, syllabus, and papers.
+    </p>
+    <div class="resource-actions">
+        <a class="download-btn" href="{{ url_for('hello') }}">Go to Homepage</a>
+        <a class="secondary-btn" href="{{ url_for('type_page', resource_type_slug='notes') }}">Browse Notes</a>
+        <a class="secondary-btn" href="{{ url_for('type_page', resource_type_slug='papers') }}">Browse Papers</a>
+    </div>
+</section>
+{% endblock %}

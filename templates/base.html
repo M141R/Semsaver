@@ -3,36 +3,36 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{{ title or "BITVault" }}</title>
-        <meta name="description" content="BITVault is a curated repository of notes, syllabi, and papers for students. Search and download study materials.">
-        <meta name="keywords" content="study materials, notes, syllabi, papers, academic resources, learning, student community">
-        <meta name="author" content="BITVault">
-        <meta name="robots" content="{{ meta_robots or default_robots }}">
-        <meta name="googlebot" content="{{ meta_robots or default_robots }}">
+      <title>{{ page_title }} | BitVault</title>
+      <meta name="description"
+          content="{{ meta_description }}">
+      <meta name="robots" content="{{ meta_robots or default_robots }}">
         <link rel="canonical" href="{{ canonical_url }}">
-        <link rel="alternate" hreflang="en" href="{{ canonical_url }}">
         <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon16.svg') }}">
         <link rel="apple-touch-icon" href="{{ url_for('static', filename='ogimage.png') }}">
+      <meta name="theme-color" content="#173f73">
+
         <meta property="og:type" content="website">
-        <meta property="og:site_name" content="BITVault">
+      <meta property="og:site_name" content="BitVault">
         <meta property="og:url" content="{{ canonical_url }}">
-        <meta property="og:title" content="{{ title or 'BITVault - Study Material Repository' }}">
-        <meta property="og:description" content="BITVault is a curated repository of notes, syllabi, and papers for students.">
-        <meta property="og:image" content="{{ url_for('static', filename='ogimage.png', _external=True) }}">
-        <meta property="og:image:secure_url" content="{{ url_for('static', filename='ogimage.png', _external=True) }}">
-        <meta property="og:image:alt" content="BITVault - Study Material Repository">
+      <meta property="og:title" content="{{ page_title }} | BitVault">
+      <meta property="og:description" content="{{ meta_description }}">
+      <meta property="og:image" content="{{ og_image }}">
+      <meta property="og:image:secure_url" content="{{ og_image }}">
+      <meta property="og:image:alt" content="BitVault preview">
         <meta property="og:locale" content="en_US">
+
         <meta name="twitter:card" content="summary_large_image">
-        <meta name="twitter:title" content="{{ title or 'BITVault' }}">
-        <meta name="twitter:description" content="Browse curated study materials on BITVault.">
-        <meta name="twitter:image" content="{{ url_for('static', filename='ogimage.png', _external=True) }}">
-        <meta name="twitter:image:alt" content="BITVault - Study Material Repository">
-        <meta name="theme-color" content="#173f73">
+      <meta name="twitter:title" content="{{ page_title }} | BitVault">
+      <meta name="twitter:description" content="{{ meta_description }}">
+      <meta name="twitter:image" content="{{ og_image }}">
+      <meta name="twitter:image:alt" content="BitVault preview">
+
         {% block head_meta %}{% endblock %}
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Manrope:wght@400;500;700;800&display=swap"
-              rel="stylesheet">.
+          rel="stylesheet">
         <meta name="google-site-verification" content="sFTTsLXWHnkln7oYArahZEscK8oICz2spmN1OMfSSq4" />
         <script>
             (function () {
@@ -49,27 +49,22 @@
               href="{{ url_for('static', filename='styles.css') }}">
         <script defer src="{{ url_for('static', filename='app.js') }}"></script>
         <script defer src="https://analytics.itsmihir.me/script.js" data-website-id="7c78f12c-a931-44ae-accb-5b2c5f322ead"></script>
-        <script type="application/ld+json">
-        {
-            "@context": "https://schema.org",
-            "@type": "WebApplication",
-            "name": "BITVault",
-            "url": "{{ base_site_url }}",
-            "description": "A curated repository of notes, syllabus, and papers for students",
-            "image": "{{ url_for('static', filename='ogimage.png', _external=True) }}",
-            "logo": "{{ url_for('static', filename='logo.svg', _external=True) }}",
-            "applicationCategory": "EducationalApplication",
-            "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "INR"
-            },
-            "author": {
-                "@type": "Organization",
-                "name": "BITVault"
+        {% if request.endpoint == 'hello' %}
+            <script type="application/ld+json">
+            {
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "name": "BitVault",
+              "url": "{{ base_site_url }}",
+              "description": "Free notes, syllabus and past papers for students. Search and download study materials.",
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": "{{ base_site_url }}/search?q={search_term_string}",
+                "query-input": "required name=search_term_string"
+              }
             }
-        }
-        </script>
+            </script>
+        {% endif %}
     </head>
     <body>
         <a class="skip-link" href="#main-content">Skip to content</a>

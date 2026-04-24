@@ -131,6 +131,18 @@ body[data-theme="dark"] {
   left: 12px;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 a {
   color: inherit;
 }
@@ -288,6 +300,26 @@ body[data-theme="dark"] .topbar {
 
 .upload-hero {
   padding-bottom: 12px;
+}
+
+.not-found-hero {
+  margin: 0 auto;
+  min-height: calc(100vh - 280px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.not-found-hero .hero-copy {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.not-found-hero .resource-actions {
+  width: min(760px, 100%);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .public-upload-wrap {
