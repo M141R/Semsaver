@@ -25,7 +25,6 @@
 {% endblock %}
 {% block content %}
     <section class="hero">
-        <p class="eyebrow">THE DIGITAL CURATOR</p>
         <h1>{{ listing_heading or "Navigate the collective knowledge of BitVault" }}</h1>
         <p class="hero-copy">
             Browse notes, syllabi, and papers shared by your batchmates. Filter by
@@ -114,7 +113,7 @@
                             data-resource-source="index_card"
                             data-resource-type="{{ item.type or '' }}"
                             data-resource-subject="{{ item.subject or '' }}"
-                        >Download {{ item.title or (item.subject ~ ' Resource') }} PDF</a>
+                        >Open {{ item.title or (item.subject ~ ' Resource') }} PDF</a>
                         <a href="{{ url_for('resource_detail', resource_id=item.id) }}" class="secondary-btn">View details for {{ item.title or (item.subject ~ ' resource') }}</a>
                         <button class="secondary-btn share-btn" type="button" data-share-url="{{ url_for('resource_detail', resource_id=item.id, _external=True) }}">Copy Link</button>
                     </div>

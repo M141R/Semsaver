@@ -834,6 +834,8 @@ body[data-theme="dark"] .topbar {
 .admin-secondary-btn {
   background: var(--control-bg-muted);
   color: var(--brand);
+  padding: 10px;
+  text-align: center;
 }
 
 .google-auth-btn {

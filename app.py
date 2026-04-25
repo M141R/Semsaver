@@ -1220,10 +1220,8 @@ def auth_login():
     if request.method == "POST":
         validate_csrf_or_abort()
 
-        mode = (request.form.get("mode") or "login").strip().lower()
         email = (request.form.get("email") or "").strip()
         password = request.form.get("password") or ""
-        username_input = (request.form.get("username") or "").strip()
         captcha_token = get_turnstile_token_from_form()
 
         if not email or not password:
@@ -1233,45 +1231,6 @@ def auth_login():
             )
 
         try:
-            if mode == "register":
-                try:
-                    username = normalize_username(username_input)
-                except ValueError as exc:
-                    error = str(exc)
-                    return render_template(
-                        "admin/login.html",
-                        title=f"{APP_NAME} Auth | Login",
-                        error=error,
-                    )
-
-                if not username:
-                    error = "Username is required for registration."
-                    return render_template(
-                        "admin/login.html",
-                        title=f"{APP_NAME} Auth | Login",
-                        error=error,
-                    )
-
-                sign_up_response = supabase_auth.auth.sign_up(
-                    {
-                        "email": email,
-                        "password": password,
-                        "options": {
-                            "data": {"username": username},
-                            "captcha_token": captcha_token,
-                        },
-                    }
-                )
-                sign_up_user = getattr(sign_up_response, "user", None)
-                sign_up_user_id = getattr(sign_up_user, "id", None)
-                if sign_up_user_id:
-                    ensure_user_role(sign_up_user_id, "student", username=username)
-                flash(
-                    "Registration successful. Verify email if required, then log in.",
-                    "success",
-                )
-                return redirect(url_for("auth_login"))
-
             response = supabase_auth.auth.sign_in_with_password(
                 {
                     "email": email,
@@ -1308,6 +1267,70 @@ def auth_login():
 
     return render_template(
         "admin/login.html", title=f"{APP_NAME} Auth | Login", error=error
+    )
+
+
+@app.route("/auth/signup", methods=["GET", "POST"])
+def auth_signup():
+    if current_user.is_authenticated:
+        return redirect(url_for("admin_upload"))
+
+    auth_redirect = require_auth_client_or_redirect("auth_signup")
+    if auth_redirect:
+        return auth_redirect
+
+    error = None
+    if request.method == "POST":
+        validate_csrf_or_abort()
+
+        username_input = (request.form.get("username") or "").strip()
+        email = (request.form.get("email") or "").strip()
+        password = request.form.get("password") or ""
+        captcha_token = get_turnstile_token_from_form()
+
+        if not username_input or not email or not password:
+            error = "Username, email, and password are required."
+            return render_template(
+                "admin/signup.html", title=f"{APP_NAME} Auth | Sign Up", error=error
+            )
+
+        try:
+            username = normalize_username(username_input)
+            if not username:
+                error = "Username is required for registration."
+                return render_template(
+                    "admin/signup.html",
+                    title=f"{APP_NAME} Auth | Sign Up",
+                    error=error,
+                )
+
+            sign_up_response = supabase_auth.auth.sign_up(
+                {
+                    "email": email,
+                    "password": password,
+                    "options": {
+                        "data": {"username": username},
+                        "captcha_token": captcha_token,
+                    },
+                }
+            )
+            sign_up_user = getattr(sign_up_response, "user", None)
+            sign_up_user_id = getattr(sign_up_user, "id", None)
+            if sign_up_user_id:
+                ensure_user_role(sign_up_user_id, "student", username=username)
+
+            flash(
+                "Registration successful. Verify email if required, then log in.",
+                "success",
+            )
+            return redirect(url_for("auth_login"))
+        except ValueError as exc:
+            error = str(exc)
+        except Exception as exc:
+            error = f"Sign up failed: {exc}"
+
+    return render_template(
+        "admin/signup.html", title=f"{APP_NAME} Auth | Sign Up", error=error
     )
 
 

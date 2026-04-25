@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>{{ title or "BITVault Admin | Login" }}</title>
+	<title>{{ title or "BITVault Admin | Sign Up" }}</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;1,400&family=Manrope:wght@400;500;700;800&display=swap"
@@ -24,8 +24,8 @@
 	</header>
 
 	<main class="admin-login-main">
-		<section class="admin-login-card" aria-label="Admin login">
-			<h1>Admin Login</h1>
+		<section class="admin-login-card" aria-label="Sign up">
+			<h1>Create Account</h1>
 			{% if error %}
 				<p class="form-error">{{ error }}</p>
 			{% endif %}
@@ -40,8 +40,11 @@
 				{% endif %}
 			{% endwith %}
 
-			<form class="admin-login-form" action="{{ url_for('auth_login') }}" method="post">
+			<form class="admin-login-form" action="{{ url_for('auth_signup') }}" method="post">
 				<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+				<label class="admin-login-field">
+					<input type="text" name="username" placeholder="Username" required>
+				</label>
 				<label class="admin-login-field">
 					<input type="email" name="email" placeholder="Email" required>
 				</label>
@@ -51,8 +54,8 @@
 				{% if turnstile_site_key %}
 					<div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>
 				{% endif %}
-				<button type="submit" class="admin-primary-btn">Login</button>
-				<a class="admin-primary-btn admin-secondary-btn" href="{{ url_for('auth_signup') }}">Create Account</a>
+				<button type="submit" class="admin-primary-btn">Create Account</button>
+				<a class="admin-primary-btn admin-secondary-btn" href="{{ url_for('auth_login') }}">Already have an account? Login</a>
 			</form>
 
 			<p class="admin-login-subtitle">OR</p>
@@ -60,7 +63,7 @@
 				<span class="google-auth-icon" aria-hidden="true">
 					<img src="{{ url_for('static', filename='google.svg') }}" alt="" loading="lazy" decoding="async">
 				</span>
-				<span class="google-auth-text">Sign in with Google</span>
+				<span class="google-auth-text">Sign up with Google</span>
 			</a>
 
 			<a class="admin-link-lite" href="{{ url_for('hello') }}">BACK TO PUBLIC LIBRARY</a>
